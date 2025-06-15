@@ -328,7 +328,7 @@ def simulate(image: str, scenario: str, output: str):
     """
     from .simulator import AgentSimulator, ScenarioLibrary
     import asyncio
-    from .mock_server import MockServerManager
+    from ..tests.fixtures.mock_server import MockServerManager
 
     console.print(f"[bold blue]Starting agent simulation for: {image}[/bold blue]")
     console.print(f"Scenario type: {scenario}")
@@ -429,69 +429,45 @@ def backtest(
         arc-verifier backtest agent:v1 --strategy momentum --use-mock-data
         arc-verifier backtest agent:v1 --output json
     """
-    # Try to use real backtester if available and requested
-    if use_real_data:
-        try:
-            from .real_backtester import RealBacktester
-            from .data_registry import DataRegistry
-            
-            # Check if we have real data available
-            registry = DataRegistry()
-            has_data = len(registry.registry.get("cached_files", {})) > 0
-            
-            if has_data:
-                console.print("[green]Using real market data for backtest[/green]")
-                backtester = RealBacktester()
-                result = backtester.run(
-                    image, 
-                    start_date, 
-                    end_date, 
-                    strategy,
-                    use_cached_regime=regime
-                )
-                
-                if output == "json":
-                    console.print_json(data=result.model_dump())
-                else:
-                    backtester.display_results(result)
-                return
-            else:
-                console.print("[yellow]No real market data cached, falling back to mock data[/yellow]")
-                console.print("[dim]Tip: Run 'python scripts/download_market_data.py --regimes' to download data[/dim]")
-        except Exception as e:
-            console.print(f"[yellow]Failed to use real data: {e}. Falling back to mock data[/yellow]")
-    
-    # Fall back to mock backtester
-    from .backtester import Backtester
+    # Use real backtester - the only production-ready implementation
+    from .real_backtester import RealBacktester
+    from .data_registry import DataRegistry
     
     console.print(f"[bold blue]Backtesting image: {image}[/bold blue]")
     console.print(f"Period: {start_date} to {end_date} | Strategy: {strategy}")
     
-    if use_real_data:
-        console.print("[yellow]Using mock data (real data not available)[/yellow]")
-
-    # Run backtest
-    backtester = Backtester()
-    result = backtester.run(image, start_date, end_date, strategy)
-
-    if output == "json":
-        console.print_json(data=result.model_dump())
-    else:
-        backtester.display_results(result)
-
-        # Investment recommendation (using mock backtester's simpler logic)
-        metrics = result.metrics
-        if metrics.sharpe_ratio > 1.5 and metrics.max_drawdown > -0.20:
-            rating = "[green]A - Highly Recommended[/green]"
-        elif metrics.sharpe_ratio > 1.0 and metrics.max_drawdown > -0.30:
-            rating = "[yellow]B - Recommended with Caution[/yellow]"
+    try:
+        # Check if we have real data available
+        registry = DataRegistry()
+        has_data = len(registry.registry.get("cached_files", {})) > 0
+        
+        if has_data and use_real_data:
+            console.print("[green]Using real market data for backtest[/green]")
+        elif use_real_data:
+            console.print("[yellow]No real market data cached, downloading may be needed[/yellow]")
+            console.print("[dim]Tip: Run 'python scripts/download_market_data.py --regimes' to download data[/dim]")
         else:
-            rating = "[red]C - High Risk[/red]"
+            console.print("[blue]Using real backtester with available data[/blue]")
 
-        console.print(f"\n[bold]Investment Rating: {rating}[/bold]")
-        console.print(
-            f"Recommended Capital: ${100000 * (2 - abs(metrics.max_drawdown)):,.0f}"
+        # Run backtest with real implementation
+        backtester = RealBacktester()
+        result = backtester.run(
+            image, 
+            start_date, 
+            end_date, 
+            strategy,
+            use_cached_regime=regime
         )
+        
+        if output == "json":
+            console.print_json(data=result.model_dump())
+        else:
+            backtester.display_results(result)
+            
+    except Exception as e:
+        console.print(f"[red]Backtest failed: {e}[/red]")
+        console.print("[dim]Ensure market data is available or check your configuration[/dim]")
+        raise click.ClickException(f"Backtest failed: {e}")
 
 
 @cli.command()

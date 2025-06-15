@@ -52,11 +52,24 @@ class KeySecurityAnalyzer(SecurityAnalyzer):
             else:
                 data = json.loads(response)
 
+            # Helper function to parse boolean-like values from LLM
+            def parse_bool(value, conservative_default: bool) -> bool:
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, str):
+                    if value.lower() in ["true", "yes", "1"]:
+                        return True
+                    elif value.lower() in ["false", "no", "0"]:
+                        return False
+                    else:  # "unknown", "unclear", etc.
+                        return conservative_default
+                return conservative_default
+
             return KeySecurityResult(
-                has_plaintext_keys=data.get("has_plaintext_keys", True),  # Conservative default
-                key_generation_secure=data.get("key_generation_secure", False),
-                key_storage_encrypted=data.get("key_storage_encrypted", False),
-                key_rotation_implemented=data.get("key_rotation_implemented", False),
+                has_plaintext_keys=parse_bool(data.get("has_plaintext_keys"), True),  # Conservative: assume yes
+                key_generation_secure=parse_bool(data.get("key_generation_secure"), False),  # Conservative: assume no
+                key_storage_encrypted=parse_bool(data.get("key_storage_encrypted"), False),  # Conservative: assume no
+                key_rotation_implemented=parse_bool(data.get("key_rotation_implemented"), False),  # Conservative: assume no
                 key_exposure_risk=data.get("key_exposure_risk", "high"),
                 security_concerns=data.get("security_concerns", ["Unable to analyze"]),
                 code_references=data.get("code_references", [])
@@ -102,12 +115,25 @@ class TransactionControlAnalyzer(SecurityAnalyzer):
             else:
                 data = json.loads(response)
 
+            # Helper function to parse boolean-like values from LLM
+            def parse_bool(value, conservative_default: bool) -> bool:
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, str):
+                    if value.lower() in ["true", "yes", "1"]:
+                        return True
+                    elif value.lower() in ["false", "no", "0"]:
+                        return False
+                    else:  # "unknown", "unclear", etc.
+                        return conservative_default
+                return conservative_default
+
             return TransactionControlResult(
-                has_spending_limits=data.get("has_spending_limits", False),
-                has_approval_mechanisms=data.get("has_approval_mechanisms", False),
-                emergency_stop_present=data.get("emergency_stop_present", False),
-                cross_chain_controls=data.get("cross_chain_controls", False),
-                transaction_monitoring=data.get("transaction_monitoring", False),
+                has_spending_limits=parse_bool(data.get("has_spending_limits"), False),  # Conservative: assume no
+                has_approval_mechanisms=parse_bool(data.get("has_approval_mechanisms"), False),  # Conservative: assume no
+                emergency_stop_present=parse_bool(data.get("emergency_stop_present"), False),  # Conservative: assume no
+                cross_chain_controls=parse_bool(data.get("cross_chain_controls"), False),  # Conservative: assume no
+                transaction_monitoring=parse_bool(data.get("transaction_monitoring"), False),  # Conservative: assume no
                 control_strength=data.get("control_strength", "weak"),
                 control_gaps=data.get("control_gaps", ["Unable to analyze"])
             )
@@ -152,12 +178,25 @@ class DeceptionDetector(SecurityAnalyzer):
             else:
                 data = json.loads(response)
 
+            # Helper function to parse boolean-like values from LLM
+            def parse_bool(value, conservative_default: bool) -> bool:
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, str):
+                    if value.lower() in ["true", "yes", "1"]:
+                        return True
+                    elif value.lower() in ["false", "no", "0"]:
+                        return False
+                    else:  # "unknown", "unclear", etc.
+                        return conservative_default
+                return conservative_default
+
             return DeceptionDetectionResult(
-                backdoor_detected=data.get("backdoor_detected", False),
-                time_bomb_detected=data.get("time_bomb_detected", False),
-                obfuscated_code_found=data.get("obfuscated_code_found", False),
-                data_exfiltration_risk=data.get("data_exfiltration_risk", False),
-                environment_specific_behavior=data.get("environment_specific_behavior", False),
+                backdoor_detected=parse_bool(data.get("backdoor_detected"), False),  # Conservative: can't detect if unknown
+                time_bomb_detected=parse_bool(data.get("time_bomb_detected"), False),  # Conservative: can't detect if unknown
+                obfuscated_code_found=parse_bool(data.get("obfuscated_code_found"), True),  # Conservative: assume yes if unknown
+                data_exfiltration_risk=parse_bool(data.get("data_exfiltration_risk"), True),  # Conservative: assume risk if unknown
+                environment_specific_behavior=parse_bool(data.get("environment_specific_behavior"), True),  # Conservative: assume risk if unknown
                 deception_indicators=data.get("deception_indicators", []),
                 risk_level=data.get("risk_level", "medium")
             )
@@ -202,13 +241,26 @@ class CapitalRiskAnalyzer(SecurityAnalyzer):
             else:
                 data = json.loads(response)
 
+            # Helper function to parse boolean-like values from LLM
+            def parse_bool(value, conservative_default: bool) -> bool:
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, str):
+                    if value.lower() in ["true", "yes", "1"]:
+                        return True
+                    elif value.lower() in ["false", "no", "0"]:
+                        return False
+                    else:  # "unknown", "unclear", etc.
+                        return conservative_default
+                return conservative_default
+
             return CapitalRiskResult(
-                max_loss_bounded=data.get("max_loss_bounded", False),
-                position_size_controls=data.get("position_size_controls", False),
-                stop_loss_implemented=data.get("stop_loss_implemented", False),
-                leverage_controls=data.get("leverage_controls", False),
-                flash_loan_usage=data.get("flash_loan_usage", True),  # Conservative: assume yes
-                risk_controls_adequate=data.get("risk_controls_adequate", False),
+                max_loss_bounded=parse_bool(data.get("max_loss_bounded"), False),  # Conservative: assume no
+                position_size_controls=parse_bool(data.get("position_size_controls"), False),  # Conservative: assume no
+                stop_loss_implemented=parse_bool(data.get("stop_loss_implemented"), False),  # Conservative: assume no
+                leverage_controls=parse_bool(data.get("leverage_controls"), False),  # Conservative: assume no
+                flash_loan_usage=parse_bool(data.get("flash_loan_usage"), True),  # Conservative: assume yes if unknown
+                risk_controls_adequate=parse_bool(data.get("risk_controls_adequate"), False),  # Conservative: assume no
                 estimated_max_loss=data.get("estimated_max_loss", "unlimited")
             )
         except Exception as e:
