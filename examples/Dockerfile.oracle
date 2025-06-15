@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy demo agent
+COPY demo_price_oracle.py .
+
+# Add shade agent labels
+LABEL shade.agent=true
+LABEL shade.type=price_oracle
+LABEL shade.version=1.0.0
+
+# Run the agent
+CMD ["python", "demo_price_oracle.py"]

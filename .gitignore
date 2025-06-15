@@ -61,6 +61,13 @@ reports/
 *.log
 verification_*.json
 .trivy-cache/
+verification_audits/
+
+# Market data (keep structure but not data)
+market_data/cache/
+market_data/daily/
+market_data/monthly/
+market_data/registry.json
 
 # Environment variables
 .env

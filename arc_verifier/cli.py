@@ -3,6 +3,7 @@
 import click
 import json
 import os
+import time
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
@@ -12,6 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 # Load environment variables
 try:
     from dotenv import load_dotenv
+
     # Look for .env file in current directory or project root
     env_paths = [Path.cwd() / ".env", Path(__file__).parent.parent / ".env"]
     for env_path in env_paths:
@@ -34,7 +36,7 @@ console = Console()
 @click.version_option(version=__version__, prog_name="arc-verifier")
 def cli():
     """Arc-Verifier: Lightweight NEAR Protocol agent verification tool.
-    
+
     Provides Docker image scanning, TEE attestation validation, and performance
     benchmarking for NEAR Agent Forts evaluation.
     """
@@ -42,21 +44,36 @@ def cli():
 
 
 @cli.command()
-@click.argument('image')
-@click.option('--tier', type=click.Choice(['high', 'medium', 'low']), 
-              default='medium', help='Security tier for verification')
-@click.option('--output', type=click.Choice(['terminal', 'json']), 
-              default='terminal', help='Output format')
-@click.option('--enable-llm/--no-llm', default=True,
-              help='Enable LLM-based behavioral analysis (default: enabled)')
-@click.option('--llm-provider', type=click.Choice(['anthropic', 'openai', 'local']),
-              default='anthropic', help='LLM provider for analysis')
+@click.argument("image")
+@click.option(
+    "--tier",
+    type=click.Choice(["high", "medium", "low"]),
+    default="medium",
+    help="Security tier for verification",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
+@click.option(
+    "--enable-llm/--no-llm",
+    default=True,
+    help="Enable LLM-based behavioral analysis (default: enabled)",
+)
+@click.option(
+    "--llm-provider",
+    type=click.Choice(["anthropic", "openai", "local"]),
+    default="anthropic",
+    help="LLM provider for analysis",
+)
 def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: str):
     """Verify a Docker image for NEAR Agent Fort deployment.
-    
+
     Performs comprehensive verification including vulnerability scanning,
     TEE attestation validation, and performance benchmarking.
-    
+
     Examples:
         arc-verifier verify shade/finance-agent:latest
         arc-verifier verify pivortex/shade-agent-template:latest --tier high
@@ -64,7 +81,7 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
     """
     console.print(f"[bold blue]Verifying image: {image}[/bold blue]")
     console.print(f"Security tier: {tier}")
-    
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -72,70 +89,94 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
     ) as progress:
         total_tasks = 4 if enable_llm else 3
         task = progress.add_task("[cyan]Running verification...", total=total_tasks)
-        
+
         # Docker scanning
         progress.update(task, description="[cyan]Scanning Docker image...")
         scanner = DockerScanner()
         scan_result = scanner.scan(image)
         progress.advance(task)
-        
+
         # TEE validation
         progress.update(task, description="[cyan]Validating TEE attestation...")
         validator = TEEValidator()
         tee_result = validator.validate(image)
         progress.advance(task)
-        
+
         # Performance benchmark
         progress.update(task, description="[cyan]Running performance benchmark...")
         benchmarker = Benchmarker()
-        benchmark_type = "trading" if any(pattern in image.lower() for pattern in ['shade', 'agent', 'finance']) else "standard"
+        benchmark_type = (
+            "trading"
+            if any(
+                pattern in image.lower() for pattern in ["shade", "agent", "finance"]
+            )
+            else "standard"
+        )
         perf_result = benchmarker.run(image, duration=30, benchmark_type=benchmark_type)
         progress.advance(task)
-        
+
         # LLM-based behavioral analysis
         llm_result = None
         if enable_llm:
-            progress.update(task, description="[cyan]Running LLM behavioral analysis...")
+            progress.update(
+                task, description="[cyan]Running LLM behavioral analysis..."
+            )
             try:
                 llm_judge = LLMJudge(primary_provider=llm_provider)
                 llm_result = llm_judge.evaluate_agent(
                     image_data=scan_result,
-                    market_context={"tier": tier, "timestamp": scan_result.get('timestamp')}
+                    market_context={
+                        "tier": tier,
+                        "timestamp": scan_result.get("timestamp"),
+                    },
                 )
             except Exception as e:
                 import traceback
+
                 console.print(f"[red]LLM analysis failed: {e}[/red]")
                 console.print(f"[red]Traceback: {traceback.format_exc()}[/red]")
                 llm_result = None
             progress.advance(task)
-    
+
     # Show LLM analysis status
     if enable_llm:
         if llm_result:
-            console.print(f"[green]🧠 LLM behavioral analysis completed - Strategy: {llm_result.intent_classification.primary_strategy}[/green]")
+            console.print(
+                f"[green]🧠 LLM behavioral analysis completed - Strategy: {llm_result.intent_classification.primary_strategy}[/green]"
+            )
         else:
-            console.print("[yellow]🧠 LLM analysis not available (check API keys in .env)[/yellow]")
-    
+            console.print(
+                "[yellow]🧠 LLM analysis not available (check API keys in .env)[/yellow]"
+            )
+
     # Display results
-    if output == 'json':
+    if output == "json":
         # Combine all results into JSON format
         # Convert datetime to ISO string for JSON serialization
         scan_result_json = scan_result.copy()
-        if 'timestamp' in scan_result_json:
-            if hasattr(scan_result_json['timestamp'], 'isoformat'):
-                scan_result_json['timestamp'] = scan_result_json['timestamp'].isoformat()
-        
+        if "timestamp" in scan_result_json:
+            if hasattr(scan_result_json["timestamp"], "isoformat"):
+                scan_result_json["timestamp"] = scan_result_json[
+                    "timestamp"
+                ].isoformat()
+
         verification_result = {
-            "verification_id": f"ver_{abs(hash(image + str(scan_result['timestamp']))):x}"[:15],
+            "verification_id": f"ver_{abs(hash(image + str(scan_result['timestamp']))):x}"[
+                :15
+            ],
             "image": image,
             "tier": tier,
-            "timestamp": scan_result_json['timestamp'],
+            "timestamp": scan_result_json["timestamp"],
             "docker_scan": scan_result_json,
             "tee_validation": tee_result,
             "performance_benchmark": perf_result,
-            "llm_analysis": llm_result.model_dump(mode='json') if llm_result else None,
-            "agent_fort_score": _calculate_agent_fort_score(scan_result, tee_result, perf_result, llm_result),
-            "overall_status": _determine_overall_status(scan_result, tee_result, perf_result, llm_result)
+            "llm_analysis": llm_result.model_dump(mode="json") if llm_result else None,
+            "agent_fort_score": _calculate_agent_fort_score(
+                scan_result, tee_result, perf_result, llm_result
+            ),
+            "overall_status": _determine_overall_status(
+                scan_result, tee_result, perf_result, llm_result
+            ),
         }
         console.print_json(data=verification_result)
     else:
@@ -143,38 +184,42 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
 
 
 @cli.command()
-@click.argument('image')
-@click.option('--output', type=click.Choice(['terminal', 'json']), 
-              default='terminal', help='Output format')
+@click.argument("image")
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
 def scan(image: str, output: str):
     """Quick vulnerability scan of a Docker image.
-    
+
     Performs rapid security scanning without full verification workflow.
-    
+
     Examples:
         arc-verifier scan nginx:latest
         arc-verifier scan myagent:latest --output json
     """
     console.print(f"[bold blue]Scanning image: {image}[/bold blue]")
-    
+
     # Run Docker scan
     scanner = DockerScanner()
     scan_result = scanner.scan(image)
-    
-    if output == 'json':
+
+    if output == "json":
         console.print_json(data=scan_result)
     else:
         table = Table(title=f"Scan Results for {image}")
         table.add_column("Check", style="cyan")
         table.add_column("Result", style="green")
-        
+
         # Count vulnerabilities by severity
-        vulns = scan_result.get('vulnerabilities', [])
-        critical = len([v for v in vulns if v.get('severity') == 'CRITICAL'])
-        high = len([v for v in vulns if v.get('severity') == 'HIGH'])
-        medium = len([v for v in vulns if v.get('severity') == 'MEDIUM'])
-        low = len([v for v in vulns if v.get('severity') == 'LOW'])
-        
+        vulns = scan_result.get("vulnerabilities", [])
+        critical = len([v for v in vulns if v.get("severity") == "CRITICAL"])
+        high = len([v for v in vulns if v.get("severity") == "HIGH"])
+        medium = len([v for v in vulns if v.get("severity") == "MEDIUM"])
+        low = len([v for v in vulns if v.get("severity") == "LOW"])
+
         vuln_summary = f"{critical} critical, {high} high, {medium} medium, {low} low"
         if critical > 0:
             vuln_color = "red"
@@ -185,27 +230,178 @@ def scan(image: str, output: str):
         else:
             vuln_color = "green"
             vuln_status = f"✓ {vuln_summary}"
-        
-        table.add_row("Image ID", scan_result.get('image_id', 'N/A')[:12] + "...")
+
+        table.add_row("Image ID", scan_result.get("image_id", "N/A")[:12] + "...")
         table.add_row("Size", f"{scan_result.get('size', 0) / 1024 / 1024:.1f} MB")
         table.add_row("Vulnerabilities", f"[{vuln_color}]{vuln_status}[/{vuln_color}]")
-        table.add_row("Shade Agent", "✓ Detected" if scan_result.get('shade_agent_detected') else "✗ Not detected")
-        
+        table.add_row(
+            "Shade Agent",
+            (
+                "✓ Detected"
+                if scan_result.get("shade_agent_detected")
+                else "✗ Not detected"
+            ),
+        )
+
         console.print(table)
 
 
 @cli.command()
-@click.argument('image')
-@click.option('--duration', default=60, help='Benchmark duration in seconds')
-@click.option('--type', 'benchmark_type', type=click.Choice(['standard', 'trading', 'stress']), 
-              default='standard', help='Benchmark type')
-@click.option('--output', type=click.Choice(['terminal', 'json']), 
-              default='terminal', help='Output format')
+@click.argument("image")
+@click.option(
+    "--scenario",
+    type=click.Choice(["price_oracle", "arbitrage", "all"]),
+    default="all",
+    help="Simulation scenario type",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
+def simulate(image: str, scenario: str, output: str):
+    """Run behavioral simulation on a Docker image.
+
+    Tests agent behavior in controlled scenarios to verify claimed functionality.
+
+    Examples:
+        arc-verifier simulate shade/oracle-agent:latest --scenario price_oracle
+        arc-verifier simulate myagent:latest --scenario arbitrage --output json
+    """
+    from .simulator import AgentSimulator, ScenarioLibrary
+    import asyncio
+    from .mock_server import MockServerManager
+
+    console.print(f"[bold blue]Starting agent simulation for: {image}[/bold blue]")
+    console.print(f"Scenario type: {scenario}")
+
+    # Start mock server
+    mock_manager = MockServerManager()
+    import threading
+
+    server_thread = threading.Thread(target=mock_manager.run_in_background, daemon=True)
+    server_thread.start()
+    time.sleep(2)  # Give server time to start
+
+    # Initialize simulator
+    simulator = AgentSimulator()
+
+    # Get scenarios
+    scenarios = []
+    if scenario == "price_oracle" or scenario == "all":
+        scenarios.extend(ScenarioLibrary.get_price_oracle_scenarios())
+    if scenario == "arbitrage" or scenario == "all":
+        scenarios.extend(ScenarioLibrary.get_arbitrage_scenarios())
+
+    # Run simulations
+    results = []
+    for sim_scenario in scenarios:
+        # Update mock server with scenario data
+        asyncio.run(mock_manager.update_scenario(sim_scenario.steps[0].market_data))
+
+        # Run simulation
+        result = simulator.run_simulation(image, sim_scenario)
+        results.append(result)
+
+        # Display result
+        if output == "terminal":
+            _display_simulation_result(result)
+
+    if output == "json":
+        # Convert results to JSON format
+        json_results = [r.model_dump(mode="json") for r in results]
+        console.print_json(
+            data={
+                "image": image,
+                "simulations": json_results,
+                "summary": {
+                    "total": len(results),
+                    "passed": len([r for r in results if r.passed]),
+                    "failed": len([r for r in results if not r.passed]),
+                },
+            }
+        )
+
+
+@cli.command()
+@click.argument("image")
+@click.option(
+    "--start-date", default="2024-01-01", help="Backtest start date (YYYY-MM-DD)"
+)
+@click.option("--end-date", default="2024-12-31", help="Backtest end date (YYYY-MM-DD)")
+@click.option(
+    "--strategy",
+    type=click.Choice(["arbitrage", "momentum", "market_making"]),
+    default="arbitrage",
+    help="Strategy type to simulate",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
+def backtest(image: str, start_date: str, end_date: str, strategy: str, output: str):
+    """Run historical backtest on a trading agent.
+
+    Simulates agent performance using historical market data to predict profitability.
+
+    Examples:
+        arc-verifier backtest shade/arbitrage-agent:latest
+        arc-verifier backtest myagent:latest --start-date 2023-01-01 --strategy momentum
+        arc-verifier backtest agent:v1 --output json
+    """
+    from .backtester import Backtester
+
+    console.print(f"[bold blue]Backtesting image: {image}[/bold blue]")
+    console.print(f"Period: {start_date} to {end_date} | Strategy: {strategy}")
+
+    # Run backtest
+    backtester = Backtester()
+    result = backtester.run(image, start_date, end_date, strategy)
+
+    if output == "json":
+        console.print_json(data=result.model_dump())
+    else:
+        backtester.display_results(result)
+
+        # Investment recommendation
+        metrics = result.metrics
+        if metrics.sharpe_ratio > 1.5 and metrics.max_drawdown > -0.20:
+            rating = "[green]A - Highly Recommended[/green]"
+        elif metrics.sharpe_ratio > 1.0 and metrics.max_drawdown > -0.30:
+            rating = "[yellow]B - Recommended with Caution[/yellow]"
+        else:
+            rating = "[red]C - High Risk[/red]"
+
+        console.print(f"\n[bold]Investment Rating: {rating}[/bold]")
+        console.print(
+            f"Recommended Capital: ${100000 * (2 - abs(metrics.max_drawdown)):,.0f}"
+        )
+
+
+@cli.command()
+@click.argument("image")
+@click.option("--duration", default=60, help="Benchmark duration in seconds")
+@click.option(
+    "--type",
+    "benchmark_type",
+    type=click.Choice(["standard", "trading", "stress"]),
+    default="standard",
+    help="Benchmark type",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
 def benchmark(image: str, duration: int, benchmark_type: str, output: str):
     """Run performance benchmark on a Docker image.
-    
+
     Tests container performance under load for the specified duration.
-    
+
     Examples:
         arc-verifier benchmark myagent:latest
         arc-verifier benchmark shade/finance-agent:latest --duration 120 --type trading
@@ -213,123 +409,191 @@ def benchmark(image: str, duration: int, benchmark_type: str, output: str):
     """
     console.print(f"[bold blue]Benchmarking image: {image}[/bold blue]")
     console.print(f"Duration: {duration} seconds | Type: {benchmark_type}")
-    
+
     # Run benchmark
     benchmarker = Benchmarker()
     result = benchmarker.run(image, duration, benchmark_type)
-    
-    if output == 'json':
+
+    if output == "json":
         console.print_json(data=result)
     else:
         _display_benchmark_results(result)
 
 
+def _display_simulation_result(result):
+    """Display simulation result in terminal format."""
+    from rich.panel import Panel
+    from rich.table import Table
+
+    # Status panel
+    status_color = "green" if result.passed else "red"
+    status_text = "✓ PASSED" if result.passed else "✗ FAILED"
+
+    console.print(
+        Panel(
+            f"[bold {status_color}]{status_text}[/bold {status_color}]\n"
+            f"Scenario: {result.scenario_name}\n"
+            f"Execution Time: {result.execution_time_seconds:.1f}s",
+            title="Simulation Result",
+            border_style=status_color,
+        )
+    )
+
+    # Behavior scores table
+    scores_table = Table(title="Behavioral Scores")
+    scores_table.add_column("Metric", style="cyan")
+    scores_table.add_column("Score", style="green")
+    scores_table.add_column("Rating", style="yellow")
+
+    for metric, score in result.behavior_scores.items():
+        rating = (
+            "Excellent"
+            if score >= 0.9
+            else "Good" if score >= 0.7 else "Fair" if score >= 0.5 else "Poor"
+        )
+        scores_table.add_row(metric.title(), f"{score:.2f}", rating)
+
+    console.print(scores_table)
+
+    # Anomalies if any
+    if result.anomalies:
+        console.print("\n[red]Anomalies Detected:[/red]")
+        for anomaly in result.anomalies:
+            console.print(f"  • {anomaly}")
+
+    # Action summary
+    if result.observed_actions:
+        console.print(
+            f"\n[blue]Observed Actions:[/blue] {len(result.observed_actions)}"
+        )
+        action_types = {}
+        for action in result.observed_actions:
+            action_type = action.get("type", "unknown")
+            action_types[action_type] = action_types.get(action_type, 0) + 1
+
+        for action_type, count in action_types.items():
+            console.print(f"  • {action_type}: {count}")
+
+
 def _display_benchmark_results(result: dict):
     """Display benchmark results in terminal format."""
-    perf = result.get('performance', {})
-    resources = result.get('resources', {})
-    trading = result.get('trading_metrics', {})
-    
+    perf = result.get("performance", {})
+    resources = result.get("resources", {})
+    trading = result.get("trading_metrics", {})
+
     # Main metrics table
-    table = Table(title=f"Benchmark Results - {result.get('benchmark_type', 'standard').title()}")
+    table = Table(
+        title=f"Benchmark Results - {result.get('benchmark_type', 'standard').title()}"
+    )
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
-    
+
     # Performance metrics
     table.add_row("Throughput", f"{perf.get('throughput_tps', 0):.0f} TPS")
     table.add_row("Avg Latency", f"{perf.get('avg_latency_ms', 0):.1f} ms")
     table.add_row("P95 Latency", f"{perf.get('p95_latency_ms', 0):.1f} ms")
     table.add_row("P99 Latency", f"{perf.get('p99_latency_ms', 0):.1f} ms")
     table.add_row("Error Rate", f"{perf.get('error_rate_percent', 0):.1f}%")
-    
+
     # Resource metrics
     table.add_row("CPU Usage", f"{resources.get('cpu_percent', 0):.1f}%")
     table.add_row("Memory Peak", f"{resources.get('memory_mb', 0):.0f} MB")
     table.add_row("Network RX", f"{resources.get('network_rx_mb', 0):.1f} MB")
     table.add_row("Network TX", f"{resources.get('network_tx_mb', 0):.1f} MB")
-    
+
     console.print(table)
-    
+
     # Trading-specific metrics if available
     if trading:
         trading_table = Table(title="Trading Metrics")
         trading_table.add_column("Operation", style="cyan")
         trading_table.add_column("Avg Latency", style="green")
         trading_table.add_column("Throughput", style="yellow")
-        
+
         for key, value in trading.items():
-            if 'avg_latency_ms' in key:
-                op_name = key.replace('_avg_latency_ms', '').replace('_', ' ').title()
-                throughput_key = key.replace('avg_latency_ms', 'throughput_ops')
+            if "avg_latency_ms" in key:
+                op_name = key.replace("_avg_latency_ms", "").replace("_", " ").title()
+                throughput_key = key.replace("avg_latency_ms", "throughput_ops")
                 throughput = trading.get(throughput_key, 0)
                 trading_table.add_row(op_name, f"{value:.1f} ms", f"{throughput} ops")
-        
+
         if trading_table.rows:
             console.print(trading_table)
 
 
-def _display_terminal_results(scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None):
+def _display_terminal_results(
+    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None
+):
     """Display verification results in terminal format."""
     table = Table(title="Verification Results")
     table.add_column("Check", style="cyan")
     table.add_column("Result", style="green")
-    
+
     # Vulnerability analysis
-    vulns = scan_result.get('vulnerabilities', [])
-    critical = len([v for v in vulns if v.get('severity') == 'CRITICAL'])
-    high = len([v for v in vulns if v.get('severity') == 'HIGH'])
-    medium = len([v for v in vulns if v.get('severity') == 'MEDIUM'])
-    low = len([v for v in vulns if v.get('severity') == 'LOW'])
-    
+    vulns = scan_result.get("vulnerabilities", [])
+    critical = len([v for v in vulns if v.get("severity") == "CRITICAL"])
+    high = len([v for v in vulns if v.get("severity") == "HIGH"])
+    medium = len([v for v in vulns if v.get("severity") == "MEDIUM"])
+    low = len([v for v in vulns if v.get("severity") == "LOW"])
+
     if critical > 0:
         vuln_status = f"[red]✗ {critical} critical, {high} high[/red]"
     elif high > 0:
         vuln_status = f"[yellow]⚠ {high} high, {medium} medium[/yellow]"
     else:
         vuln_status = f"[green]✓ {medium} medium, {low} low[/green]"
-    
+
     table.add_row("Vulnerabilities", vuln_status)
-    
+
     # TEE status
-    tee_valid = tee_result.get('is_valid', True)
-    tee_platform = tee_result.get('platform', 'Unknown')
+    tee_valid = tee_result.get("is_valid", True)
+    tee_platform = tee_result.get("platform", "Unknown")
     tee_status = f"✓ {tee_platform}" if tee_valid else f"✗ {tee_platform}"
     tee_color = "green" if tee_valid else "red"
     table.add_row("TEE Attestation", f"[{tee_color}]{tee_status}[/{tee_color}]")
-    
-    table.add_row("Shade Agent", "✓ Detected" if scan_result.get('shade_agent_detected') else "✗ Not detected")
-    
+
+    table.add_row(
+        "Shade Agent",
+        "✓ Detected" if scan_result.get("shade_agent_detected") else "✗ Not detected",
+    )
+
     # Performance metrics
-    perf_metrics = perf_result.get('performance', {})
-    throughput = perf_metrics.get('throughput_tps', 0)
-    avg_latency = perf_metrics.get('avg_latency_ms', 0)
+    perf_metrics = perf_result.get("performance", {})
+    throughput = perf_metrics.get("throughput_tps", 0)
+    avg_latency = perf_metrics.get("avg_latency_ms", 0)
     table.add_row("Performance", f"✓ {throughput:.0f} TPS, {avg_latency:.1f}ms avg")
-    
+
     # LLM Analysis (if available)
     if llm_result:
         intent = llm_result.intent_classification
         risk_profile = intent.risk_profile
         strategy = intent.primary_strategy
         confidence = llm_result.confidence_level
-        
+
         llm_status = f"✓ {strategy.title()} | {risk_profile.title()} Risk | {confidence:.0%} Confidence"
         if llm_result.behavioral_flags:
             flag_count = len(llm_result.behavioral_flags)
             llm_status += f" | {flag_count} Flag{'s' if flag_count != 1 else ''}"
-        
+
         table.add_row("LLM Analysis", llm_status)
-    
+
     # Overall status
-    overall_status = _determine_overall_status(scan_result, tee_result, perf_result, llm_result)
+    overall_status = _determine_overall_status(
+        scan_result, tee_result, perf_result, llm_result
+    )
     status_color = "green" if overall_status == "PASSED" else "red"
-    table.add_row("Overall Status", f"[{status_color}]✓ {overall_status}[/{status_color}]")
-    
+    table.add_row(
+        "Overall Status", f"[{status_color}]✓ {overall_status}[/{status_color}]"
+    )
+
     console.print(table)
-    
+
     # Calculate Agent Fort Score
-    score = _calculate_agent_fort_score(scan_result, tee_result, perf_result, llm_result)
+    score = _calculate_agent_fort_score(
+        scan_result, tee_result, perf_result, llm_result
+    )
     score_color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
-    
+
     # Enhanced score display with LLM insights
     score_text = f"[bold {score_color}]{score}/180[/bold {score_color}]"
     if llm_result and llm_result.score_adjustments:
@@ -337,127 +601,190 @@ def _display_terminal_results(scan_result: dict, tee_result: dict, perf_result: 
         if total_llm_adjustment != 0:
             adjustment_color = "green" if total_llm_adjustment > 0 else "red"
             score_text += f"\n[{adjustment_color}]LLM Adjustment: {total_llm_adjustment:+.1f}[/{adjustment_color}]"
-    
-    score_panel = Panel(
-        score_text,
-        title="Agent Fort Score",
-        border_style=score_color
-    )
+
+    score_panel = Panel(score_text, title="Agent Fort Score", border_style=score_color)
     console.print(score_panel)
-    
+
     # Display LLM insights if available
     if llm_result and llm_result.reasoning:
         insights_panel = Panel(
-            llm_result.reasoning[:300] + ("..." if len(llm_result.reasoning) > 300 else ""),
+            llm_result.reasoning[:300]
+            + ("..." if len(llm_result.reasoning) > 300 else ""),
             title="🧠 LLM Insights",
-            border_style="blue"
+            border_style="blue",
         )
         console.print(insights_panel)
 
 
-def _calculate_agent_fort_score(scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None) -> int:
-    """Calculate Agent Fort score based on verification results with LLM augmentation."""
+def _calculate_agent_fort_score(
+    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None
+) -> int:
+    """Calculate Agent Fort score based on verification results with balanced scoring.
+    
+    New balanced scoring (based on executive feedback):
+    - Base score: 100
+    - Security: ±30 points max (was ±50)
+    - LLM: ±30 points max (was ±50)
+    - Behavior: ±30 points (unchanged)
+    - Performance: -50 to +90 points (was -40 to +80)
+    
+    Total range: 0-180 points
+    """
     score = 100
+
+    # SECURITY SCORING (±30 points max)
+    security_adjustment = 0
     
-    # Vulnerability penalties
-    vulns = scan_result.get('vulnerabilities', [])
-    critical = len([v for v in vulns if v.get('severity') == 'CRITICAL'])
-    high = len([v for v in vulns if v.get('severity') == 'HIGH'])
-    medium = len([v for v in vulns if v.get('severity') == 'MEDIUM'])
+    # Vulnerability penalties (capped at -20)
+    vulns = scan_result.get("vulnerabilities", [])
+    critical = len([v for v in vulns if v.get("severity") == "CRITICAL"])
+    high = len([v for v in vulns if v.get("severity") == "HIGH"])
+    medium = len([v for v in vulns if v.get("severity") == "MEDIUM"])
     
-    score -= critical * 30  # -30 per critical
-    score -= high * 15      # -15 per high
-    score -= medium * 5     # -5 per medium
-    
+    vuln_penalty = min(20, critical * 10 + high * 5 + medium * 2)
+    security_adjustment -= vuln_penalty
+
     # TEE validation bonus/penalty
-    if not tee_result.get('is_valid', True):
-        score -= 20
+    if not tee_result.get("is_valid", True):
+        security_adjustment -= 10
     else:
         # Bonus for high trust level
-        trust_level = tee_result.get('trust_level', 'LOW')
-        if trust_level == 'HIGH':
-            score += 10
-        elif trust_level == 'MEDIUM':
-            score += 5
-    
+        trust_level = tee_result.get("trust_level", "LOW")
+        if trust_level == "HIGH":
+            security_adjustment += 5
+        elif trust_level == "MEDIUM":
+            security_adjustment += 3
+
     # Shade agent detection bonus
-    if scan_result.get('shade_agent_detected', False):
-        score += 5
+    if scan_result.get("shade_agent_detected", False):
+        security_adjustment += 5
+
+    # Cap security adjustments at ±30
+    security_adjustment = max(-30, min(30, security_adjustment))
+    score += security_adjustment
+
+    # LLM INTELLIGENCE SCORING (±30 points max)
+    llm_adjustment = 0
     
-    # Performance considerations
-    perf_metrics = perf_result.get('performance', {})
-    throughput = perf_metrics.get('throughput_tps', 0)
-    avg_latency = perf_metrics.get('avg_latency_ms', 0)
-    error_rate = perf_metrics.get('error_rate_percent', 0)
-    
-    # Throughput scoring
-    if throughput < 500:
-        score -= 10
-    elif throughput > 2000:
-        score += 5
-    
-    # Latency scoring
-    if avg_latency > 100:
-        score -= 5
-    elif avg_latency < 20:
-        score += 3
-    
-    # Error rate penalty
-    if error_rate > 5:
-        score -= 15
-    elif error_rate > 1:
-        score -= 5
-    
-    # LLM-based adjustments (Phase 2 innovation)
-    if llm_result and llm_result.score_adjustments:
-        for category, adjustment in llm_result.score_adjustments.items():
-            score += adjustment
-            
-        # Additional LLM-based factors
-        if hasattr(llm_result, 'code_quality') and llm_result.code_quality:
-            # Bonus/penalty based on code quality assessment
-            code_quality_bonus = (llm_result.code_quality.overall_score - 0.5) * 20
-            score += code_quality_bonus
-            
-        # Risk assessment adjustments
-        if hasattr(llm_result, 'risk_assessment') and llm_result.risk_assessment:
-            # Penalty for high systemic risk
-            systemic_risk_penalty = llm_result.risk_assessment.systemic_risk_score * 15
-            score -= systemic_risk_penalty
-            
-        # Behavioral flags penalty
+    if llm_result:
+        # Base LLM score adjustments
+        if llm_result.score_adjustments:
+            for category, adjustment in llm_result.score_adjustments.items():
+                llm_adjustment += adjustment
+
+        # Code quality assessment
+        if hasattr(llm_result, "code_quality") and llm_result.code_quality:
+            code_quality_bonus = (llm_result.code_quality.overall_score - 0.5) * 10
+            llm_adjustment += code_quality_bonus
+
+        # Risk assessment
+        if hasattr(llm_result, "risk_assessment") and llm_result.risk_assessment:
+            # Critical risk flag = auto-reject (separate from scoring)
+            if llm_result.risk_assessment.systemic_risk_score > 0.9:
+                # This would trigger auto-reject in the status determination
+                llm_adjustment -= 30
+            else:
+                systemic_risk_penalty = llm_result.risk_assessment.systemic_risk_score * 10
+                llm_adjustment -= systemic_risk_penalty
+
+        # Behavioral flags
         if llm_result.behavioral_flags:
-            score -= len(llm_result.behavioral_flags) * 5
+            llm_adjustment -= min(10, len(llm_result.behavioral_flags) * 3)
     
-    # New scoring range: 0-180 points (base 100 + up to 80 from LLM adjustments)
-    return max(0, min(180, int(score)))
+    # Cap LLM adjustments at ±30
+    llm_adjustment = max(-30, min(30, llm_adjustment))
+    score += llm_adjustment
+
+    # BEHAVIORAL TESTING SCORING (±30 points, from Phase 3A simulation)
+    # Note: This is currently embedded in basic performance metrics
+    # Will be properly separated when Phase 3A simulation results are available
+    behavior_adjustment = 0
+    
+    # Basic performance checks (temporary placeholder for behavior scoring)
+    perf_metrics = perf_result.get("performance", {})
+    throughput = perf_metrics.get("throughput_tps", 0)
+    avg_latency = perf_metrics.get("avg_latency_ms", 0)
+    error_rate = perf_metrics.get("error_rate_percent", 0)
+
+    # Throughput check
+    if throughput < 500:
+        behavior_adjustment -= 10
+    elif throughput > 2000:
+        behavior_adjustment += 5
+
+    # Latency check
+    if avg_latency > 100:
+        behavior_adjustment -= 5
+    elif avg_latency < 20:
+        behavior_adjustment += 5
+
+    # Error rate check
+    if error_rate > 5:
+        behavior_adjustment -= 10
+    elif error_rate < 1:
+        behavior_adjustment += 5
+
+    # Cap behavior adjustments at ±30
+    behavior_adjustment = max(-30, min(30, behavior_adjustment))
+    score += behavior_adjustment
+
+    # PERFORMANCE VERIFICATION SCORING (-50 to +90 points, Phase 3B)
+    # This will be properly implemented in Phase 3B with real backtesting
+    # For now, using placeholder scoring
+    performance_adjustment = 0
+    
+    # Placeholder for future implementation:
+    # - Strategy verification: Does it actually arbitrage/MM/etc? (+40)
+    # - Risk compliance: Stays within limits (+20)
+    # - Consistency: Works across market regimes (+30)
+    # - Percentile ranking: Top 10% (+90), Bottom 10% (-50)
+    
+    # Current placeholder based on basic metrics
+    if error_rate == 0 and throughput > 1000:
+        performance_adjustment += 20  # Basic competence bonus
+    
+    # Final score calculation
+    final_score = score + performance_adjustment
+    
+    # Ensure score stays within 0-180 range
+    return max(0, min(180, int(final_score)))
 
 
-def _determine_overall_status(scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None) -> str:
+def _determine_overall_status(
+    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None
+) -> str:
     """Determine overall verification status with LLM insights."""
-    vulns = scan_result.get('vulnerabilities', [])
-    critical = len([v for v in vulns if v.get('severity') == 'CRITICAL'])
-    high = len([v for v in vulns if v.get('severity') == 'HIGH'])
-    
-    tee_valid = tee_result.get('is_valid', True)
-    
-    perf_metrics = perf_result.get('performance', {})
-    error_rate = perf_metrics.get('error_rate_percent', 0)
-    
+    vulns = scan_result.get("vulnerabilities", [])
+    critical = len([v for v in vulns if v.get("severity") == "CRITICAL"])
+    high = len([v for v in vulns if v.get("severity") == "HIGH"])
+
+    tee_valid = tee_result.get("is_valid", True)
+
+    perf_metrics = perf_result.get("performance", {})
+    error_rate = perf_metrics.get("error_rate_percent", 0)
+
     # LLM-based risk factors
     llm_risk_flags = 0
     if llm_result:
         # Count serious behavioral flags
-        serious_flags = [flag for flag in llm_result.behavioral_flags 
-                        if any(keyword in flag.lower() for keyword in 
-                              ['malicious', 'suspicious', 'high risk', 'dangerous'])]
+        serious_flags = [
+            flag
+            for flag in llm_result.behavioral_flags
+            if any(
+                keyword in flag.lower()
+                for keyword in ["malicious", "suspicious", "high risk", "dangerous"]
+            )
+        ]
         llm_risk_flags = len(serious_flags)
-        
+
         # Check for high systemic risk
-        if (hasattr(llm_result, 'risk_assessment') and llm_result.risk_assessment and
-            llm_result.risk_assessment.systemic_risk_score > 0.8):
+        if (
+            hasattr(llm_result, "risk_assessment")
+            and llm_result.risk_assessment
+            and llm_result.risk_assessment.systemic_risk_score > 0.8
+        ):
             llm_risk_flags += 1
-    
+
     # Fail conditions (enhanced with LLM)
     if critical > 0:
         return "FAILED"
@@ -467,7 +794,7 @@ def _determine_overall_status(scan_result: dict, tee_result: dict, perf_result: 
         return "FAILED"
     if llm_risk_flags >= 2:  # Multiple serious LLM flags
         return "FAILED"
-    
+
     # Warning conditions (enhanced with LLM)
     if high > 5:
         return "WARNING"
@@ -475,9 +802,9 @@ def _determine_overall_status(scan_result: dict, tee_result: dict, perf_result: 
         return "WARNING"
     if llm_risk_flags >= 1:  # Single serious LLM flag
         return "WARNING"
-    if (llm_result and llm_result.confidence_level < 0.5):  # Low LLM confidence
+    if llm_result and llm_result.confidence_level < 0.5:  # Low LLM confidence
         return "WARNING"
-    
+
     return "PASSED"
 
 

@@ -7,6 +7,10 @@ A lightweight, standalone CLI tool for verifying NEAR Protocol finance agents. N
 - 🔍 **Docker Image Scanning**: Vulnerability detection using Trivy
 - 🛡️ **TEE Attestation**: Validate trusted execution environments
 - ⚡ **Performance Benchmarking**: Quick performance profiling
+- 📈 **Historical Backtesting**: Simulate trading performance with real market data
+- 🧠 **AI-Powered Analysis**: LLM-based behavioral assessment and risk profiling
+- 🎯 **Strategy Classification**: Identify trading strategies (arbitrage, momentum, etc.)
+- 💰 **Profitability Prediction**: Forecast returns based on historical performance
 - 📊 **Multiple Output Formats**: Terminal tables or JSON export
 - 🚀 **Minimal Dependencies**: Install and run in seconds
 
@@ -16,7 +20,7 @@ A lightweight, standalone CLI tool for verifying NEAR Protocol finance agents. N
 # Install
 pip install arc-verifier
 
-# Verify an agent
+# Verify an agent (full analysis with LLM)
 arc-verifier verify shade/finance-agent:latest
 
 # Quick vulnerability scan
@@ -24,6 +28,12 @@ arc-verifier scan myagent:latest
 
 # Run performance benchmark
 arc-verifier benchmark myagent:latest --duration 60
+
+# Historical backtest for profitability
+arc-verifier backtest shade/arbitrage-agent:latest --start-date 2024-01-01
+
+# Simulate agent behavior
+arc-verifier simulate shade/oracle-agent:latest --scenario price_oracle
 ```
 
 ## Installation
@@ -101,6 +111,55 @@ arc-verifier benchmark <image> [OPTIONS]
 
 Options:
   --duration INTEGER  Benchmark duration in seconds (default: 60)
+  --type [standard|trading|stress]  Benchmark type (default: standard)
+```
+
+### Backtest Command
+
+Historical performance simulation for trading agents:
+
+```bash
+arc-verifier backtest <image> [OPTIONS]
+
+Options:
+  --start-date TEXT  Backtest start date YYYY-MM-DD (default: 2024-01-01)
+  --end-date TEXT    Backtest end date YYYY-MM-DD (default: 2024-12-31)
+  --strategy [arbitrage|momentum|market_making]  Strategy type (default: arbitrage)
+  --output [terminal|json]  Output format (default: terminal)
+```
+
+Example:
+```bash
+$ arc-verifier backtest shade/arbitrage-agent:latest --start-date 2024-01-01
+
+[blue]Starting backtest for shade/arbitrage-agent:latest[/blue]
+Period: 2024-01-01 to 2024-12-31 | Strategy: arbitrage
+
+Backtest Results
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Metric              ┃ Value      ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ Total Return        │ 18.5%      │
+│ Annualized Return   │ 18.5%      │
+│ Sharpe Ratio        │ 1.85       │
+│ Max Drawdown        │ -12.0%     │
+│ Win Rate            │ 62.0%      │
+│ Profit Factor       │ 1.80       │
+│ Total Trades        │ 1,247      │
+└─────────────────────┴────────────┘
+
+Performance by Market Regime
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+┃ Regime              ┃ Hours ┃ Trades ┃ Annualized Return┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+│ Bull Trend          │ 2,190 │ 312    │ 22.0%           │
+│ Bear Market         │ 2,190 │ 298    │ 8.0%            │
+│ High Volatility     │ 1,460 │ 425    │ 35.0%           │
+│ Sideways            │ 2,920 │ 212    │ 5.0%            │
+└─────────────────────┴───────┴────────┴─────────────────┘
+
+[bold]Investment Rating: [green]A - Highly Recommended[/green][/bold]
+Recommended Capital: $188,000
 ```
 
 ## Output Formats
