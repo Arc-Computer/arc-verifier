@@ -31,6 +31,7 @@ from .llm_judge import LLMJudge
 from .strategy_verifier import StrategyVerifier
 from .audit_logger import AuditLogger
 from .parallel_verifier import ParallelVerifier
+from .core_verifier import CoreArcVerifier, ResourceLimits
 
 console = Console()
 
@@ -238,6 +239,162 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
             verification_result=verification_result,
             llm_reasoning=llm_result.reasoning if llm_result else None
         )
+
+
+@cli.command()
+@click.argument("images", nargs=-1, required=True)
+@click.option(
+    "--enable-llm/--no-llm",
+    default=True,
+    help="Enable LLM-based behavioral analysis (default: enabled)",
+)
+@click.option(
+    "--enable-backtesting/--no-backtesting",
+    default=True,
+    help="Enable real market data backtesting (default: enabled)",
+)
+@click.option(
+    "--backtest-period",
+    default="2024-10-01:2024-10-07",
+    help="Backtest date range (start:end format)",
+)
+@click.option(
+    "--max-backtests",
+    type=int,
+    default=8,
+    help="Maximum concurrent backtests (default: 8)",
+)
+@click.option(
+    "--max-scans",
+    type=int,
+    default=12,
+    help="Maximum concurrent scans (default: 12)",
+)
+@click.option(
+    "--max-llm",
+    type=int,
+    default=6,
+    help="Maximum concurrent LLM calls (default: 6)",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
+def core_verify(
+    images: tuple,
+    enable_llm: bool,
+    enable_backtesting: bool,
+    backtest_period: str,
+    max_backtests: int,
+    max_scans: int,
+    max_llm: int,
+    output: str,
+):
+    """Core lightweight verification focused on immediate value.
+
+    This is the Phase 1 implementation optimized for small teams and laptops.
+    Provides real market data backtesting, security scanning, strategy verification,
+    and LLM trust analysis without heavy container overhead.
+
+    Examples:
+        arc-verifier core-verify shade/agent:latest
+        arc-verifier core-verify agent1:v1 agent2:v2 agent3:v3
+        arc-verifier core-verify myagent:latest --no-llm --max-backtests 4
+        arc-verifier core-verify agent:latest --backtest-period 2024-11-01:2024-11-07
+    """
+    if not images:
+        console.print("[red]Error: No images provided[/red]")
+        raise click.ClickException("At least one image must be specified")
+
+    console.print(f"[bold blue]Core verification of {len(images)} agent(s)[/bold blue]")
+    console.print(f"Backtesting: {'enabled' if enable_backtesting else 'disabled'}")
+    console.print(f"LLM analysis: {'enabled' if enable_llm else 'disabled'}")
+    console.print(f"Backtest period: {backtest_period}")
+
+    # Configure resource limits
+    resource_limits = ResourceLimits(
+        max_concurrent_backtests=max_backtests,
+        max_concurrent_scans=max_scans,
+        max_concurrent_llm=max_llm,
+    )
+
+    # Initialize core verifier
+    core_verifier = CoreArcVerifier(
+        resource_limits=resource_limits,
+        console=console
+    )
+
+    # Run verification
+    import asyncio
+    try:
+        if len(images) == 1:
+            # Single agent verification
+            result = asyncio.run(
+                core_verifier.verify_agent(
+                    agent_image=images[0],
+                    enable_llm=enable_llm,
+                    enable_backtesting=enable_backtesting,
+                    backtest_period=backtest_period
+                )
+            )
+            
+            if output == "json":
+                # Convert to JSON-serializable format
+                json_result = {
+                    "agent_id": result.agent_id,
+                    "fort_score": result.fort_score,
+                    "security_score": result.security_score,
+                    "strategy_score": result.strategy_score,
+                    "trust_score": result.trust_score,
+                    "tee_score": result.tee_score,
+                    "processing_time": result.processing_time,
+                    "timestamp": result.timestamp.isoformat(),
+                    "warnings": result.warnings,
+                    "recommendations": result.recommendations,
+                    "scan_result": result.scan_result,
+                    "backtest_result": result.backtest_result,
+                    "strategy_result": result.strategy_result,
+                    "llm_result": result.llm_result,
+                    "tee_result": result.tee_result
+                }
+                console.print_json(data=json_result)
+            else:
+                core_verifier.display_result(result)
+            
+        else:
+            # Batch verification
+            batch_result = asyncio.run(
+                core_verifier.verify_batch(
+                    agent_images=list(images),
+                    enable_llm=enable_llm,
+                    enable_backtesting=enable_backtesting,
+                    backtest_period=backtest_period
+                )
+            )
+            
+            if output == "json":
+                # Convert to JSON-serializable format
+                json_result = {
+                    "batch_verification": {
+                        "total_agents": batch_result.total_agents,
+                        "successful_verifications": batch_result.successful_verifications,
+                        "failed_verifications": batch_result.failed_verifications,
+                        "average_fort_score": batch_result.average_fort_score,
+                        "processing_time": batch_result.processing_time,
+                        "timestamp": batch_result.timestamp.isoformat(),
+                        "results": [result.__dict__ for result in batch_result.results],
+                        "failures": batch_result.failures
+                    }
+                }
+                console.print_json(data=json_result)
+            else:
+                core_verifier.display_batch_results(batch_result)
+
+    except Exception as e:
+        console.print(f"[red]Core verification failed: {e}[/red]")
+        raise click.ClickException(str(e))
 
 
 @cli.command()
