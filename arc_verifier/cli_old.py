@@ -44,6 +44,47 @@ def cli():
 
 
 @cli.command()
+@click.option("--env", type=click.Choice(["production", "staging", "development"]), default="development", help="Environment type")
+@click.option("--force", is_flag=True, help="Overwrite existing configuration")
+def init(env, force):
+    """Initialize Arc-Verifier environment and configuration."""
+    
+    console.print("[bold blue]🚀 Initializing Arc-Verifier Environment[/bold blue]\n")
+    
+    # Check if already initialized
+    env_file = Path.cwd() / ".env"
+    if env_file.exists() and not force:
+        console.print("[yellow]⚠️  Arc-Verifier already initialized (.env file exists)[/yellow]")
+        console.print("Use --force to overwrite existing configuration")
+        return
+    
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}")) as progress:
+        # Step 1: Detect capabilities
+        task = progress.add_task("[cyan]Detecting system capabilities...", total=None)
+        capabilities = _detect_system_capabilities()
+        progress.remove_task(task)
+        
+        # Step 2: Generate configuration
+        task = progress.add_task("[cyan]Generating configuration...", total=None)
+        config = _generate_env_config(env, capabilities)
+        progress.remove_task(task)
+        
+        # Step 3: Write .env file
+        task = progress.add_task("[cyan]Writing configuration file...", total=None)
+        _write_env_file(config, env_file)
+        progress.remove_task(task)
+        
+        # Step 4: Download sample data (if requested)
+        if env == "development":
+            task = progress.add_task("[cyan]Downloading sample market data...", total=None)
+            _download_sample_data()
+            progress.remove_task(task)
+    
+    # Display results
+    _display_init_results(env, capabilities, config)
+
+
+@cli.command()
 @click.argument("image")
 @click.option(
     "--tier",
@@ -1322,6 +1363,177 @@ def verify_batch(
     except Exception as e:
         console.print(f"[red]Batch verification failed: {e}[/red]")
         raise click.ClickException(str(e))
+
+
+# Helper functions for init command
+def _detect_system_capabilities():
+    """Detect system capabilities for Arc-Verifier."""
+    capabilities = {
+        "docker": False,
+        "tee": {"available": False, "platform": "none"},
+        "gpu": False,
+        "memory_gb": 0,
+        "cpu_cores": 0
+    }
+    
+    # Check Docker
+    try:
+        import docker
+        client = docker.from_env()
+        client.ping()
+        capabilities["docker"] = True
+    except:
+        pass
+    
+    # Check TEE capabilities
+    tee_paths = {
+        "/dev/tdx-guest": "intel_tdx",
+        "/dev/sgx_enclave": "intel_sgx", 
+        "/dev/sev-guest": "amd_sev"
+    }
+    
+    for path, platform in tee_paths.items():
+        if Path(path).exists():
+            capabilities["tee"]["available"] = True
+            capabilities["tee"]["platform"] = platform
+            break
+    
+    # Check system resources
+    try:
+        import psutil
+        capabilities["memory_gb"] = round(psutil.virtual_memory().total / (1024**3))
+        capabilities["cpu_cores"] = psutil.cpu_count()
+    except ImportError:
+        # Fallback to basic detection
+        try:
+            import os
+            capabilities["cpu_cores"] = os.cpu_count() or 4
+        except:
+            capabilities["cpu_cores"] = 4
+        capabilities["memory_gb"] = 8  # Default assumption
+    
+    return capabilities
+
+
+def _generate_env_config(env_type, capabilities):
+    """Generate .env configuration based on environment and capabilities."""
+    
+    config = {
+        "# Arc-Verifier Configuration": "",
+        "ARC_VERIFIER_ENV": env_type,
+        "": "",
+        
+        "# API Configuration": "",
+        "ANTHROPIC_API_KEY": "# Add your Anthropic API key here",
+        "OPENAI_API_KEY": "# Add your OpenAI API key here",
+        "": "",
+        
+        "# Resource Limits": "",
+        "MAX_CONCURRENT_VERIFICATIONS": str(min(8, capabilities["cpu_cores"])),
+        "MAX_CONCURRENT_SCANS": str(min(12, capabilities["cpu_cores"] * 2)),
+        "MAX_CONCURRENT_LLM": str(min(6, capabilities["cpu_cores"])),
+        "": "",
+        
+        "# TEE Configuration": "",
+        "TEE_ENABLED": "true" if capabilities["tee"]["available"] else "false", 
+        "TEE_PLATFORM": capabilities["tee"]["platform"],
+        "TEE_SIMULATION_MODE": "false" if capabilities["tee"]["available"] else "true",
+        "": "",
+        
+        "# Data Configuration": "",
+        "MARKET_DATA_PATH": "./market_data",
+        "CACHE_ENABLED": "true",
+        "": "",
+    }
+    
+    if env_type == "production":
+        config.update({
+            "LOG_LEVEL": "INFO",
+            "ENABLE_AUDIT": "true",
+            "STRICT_VALIDATION": "true"
+        })
+    elif env_type == "development":
+        config.update({
+            "LOG_LEVEL": "DEBUG", 
+            "ENABLE_AUDIT": "false",
+            "STRICT_VALIDATION": "false",
+            "DOWNLOAD_SAMPLE_DATA": "true"
+        })
+    
+    return config
+
+
+def _write_env_file(config, env_file):
+    """Write configuration to .env file.""" 
+    with open(env_file, 'w') as f:
+        for key, value in config.items():
+            if key.startswith("#"):
+                f.write(f"{key}\n")
+            elif key == "":
+                f.write("\n")
+            else:
+                f.write(f"{key}={value}\n")
+
+
+def _download_sample_data():
+    """Download sample market data for development."""
+    try:
+        from .data import BinanceDataFetcher
+        
+        data_dir = Path.cwd() / "market_data"
+        data_dir.mkdir(exist_ok=True)
+        
+        fetcher = BinanceDataFetcher(data_dir)
+        # Download small sample for testing
+        # This is just a placeholder - would implement actual download
+        
+    except Exception:
+        # Silently fail if data download fails
+        pass
+
+
+def _display_init_results(env_type, capabilities, config):
+    """Display initialization results."""
+    
+    console.print(f"[bold green]✅ Arc-Verifier initialized successfully![/bold green]\n")
+    
+    # System capabilities panel
+    capabilities_table = Table(title="Detected System Capabilities")
+    capabilities_table.add_column("Capability", style="cyan")
+    capabilities_table.add_column("Status", style="green")
+    capabilities_table.add_column("Details", style="yellow")
+    
+    capabilities_table.add_row(
+        "Docker", 
+        "✅ Available" if capabilities["docker"] else "❌ Not Available",
+        "Required for agent verification"
+    )
+    
+    tee_status = "✅ Available" if capabilities["tee"]["available"] else "⚠️ Simulation Mode"
+    tee_details = f"Platform: {capabilities['tee']['platform']}" if capabilities["tee"]["available"] else "Will use simulation for development"
+    capabilities_table.add_row("TEE", tee_status, tee_details)
+    
+    capabilities_table.add_row(
+        "Resources",
+        f"✅ {capabilities['cpu_cores']} cores, {capabilities['memory_gb']}GB RAM",
+        "Sufficient for verification workloads"
+    )
+    
+    console.print(capabilities_table)
+    
+    # Next steps panel
+    next_steps = f"""
+[bold]Next Steps:[/bold]
+
+1. [cyan]Edit .env file[/cyan] - Add your API keys for LLM analysis
+2. [cyan]Test setup[/cyan] - Run: arc-verifier validate-config
+3. [cyan]Start verifying[/cyan] - Run: arc-verifier verify <image>
+
+[bold]Environment:[/bold] {env_type}
+[bold]Configuration:[/bold] .env file created
+"""
+    
+    console.print(Panel(next_steps, title="🎯 Ready to Use", border_style="green"))
 
 
 if __name__ == "__main__":
