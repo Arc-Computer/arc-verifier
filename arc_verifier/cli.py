@@ -28,6 +28,7 @@ from .scanner import DockerScanner
 from .validator import TEEValidator
 from .benchmarker import Benchmarker
 from .llm_judge import LLMJudge
+from .strategy_verifier import StrategyVerifier
 
 console = Console()
 
@@ -435,6 +436,67 @@ def backtest(
         console.print(
             f"Recommended Capital: ${100000 * (2 - abs(metrics.max_drawdown)):,.0f}"
         )
+
+
+@cli.command()
+@click.argument("image")
+@click.option(
+    "--start-date", 
+    default=None, 
+    help="Verification start date (YYYY-MM-DD)"
+)
+@click.option(
+    "--end-date", 
+    default=None, 
+    help="Verification end date (YYYY-MM-DD)"
+)
+@click.option(
+    "--regime",
+    type=click.Choice(["bull_2024", "bear_2024", "volatile_2024", "sideways_2024"]),
+    default=None,
+    help="Use pre-defined market regime (overrides start/end dates)",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
+def verify_strategy(image: str, start_date: str, end_date: str, regime: str, output: str):
+    """Verify trading strategy implementation and effectiveness.
+
+    Analyzes agent behavior to detect strategy type, verify claimed functionality,
+    and assess performance potential.
+
+    Examples:
+        arc-verifier verify-strategy shade/arbitrage-agent:latest
+        arc-verifier verify-strategy myagent:latest --regime bull_2024
+        arc-verifier verify-strategy agent:v1 --start-date 2024-10-01 --end-date 2024-10-07
+    """
+    console.print(f"[bold blue]Verifying strategy for: {image}[/bold blue]")
+    
+    # Initialize verifier
+    verifier = StrategyVerifier()
+    
+    try:
+        # Run verification
+        result = verifier.verify_strategy(
+            image,
+            start_date=start_date,
+            end_date=end_date,
+            use_regime=regime
+        )
+        
+        if output == "json":
+            console.print_json(data=result.model_dump())
+        else:
+            verifier.display_verification_report(result)
+            
+    except Exception as e:
+        console.print(f"[red]Strategy verification failed: {e}[/red]")
+        if output == "json":
+            console.print_json(data={"error": str(e), "status": "failed"})
+        raise click.ClickException(str(e))
 
 
 @cli.command()

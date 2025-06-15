@@ -207,3 +207,26 @@ Data integrity verified via SHA-256 hashing.
             })
             
         return sorted(audits, key=lambda x: x["timestamp"], reverse=True)
+    
+    def log_action(self, action: str, details: Dict[str, Any]) -> None:
+        """Log a specific action for audit trail.
+        
+        Args:
+            action: Action name (e.g., "strategy_verification")
+            details: Action details to log
+        """
+        timestamp = datetime.now()
+        
+        # Create action log file for the day
+        log_filename = f"actions_{timestamp.strftime('%Y%m%d')}.jsonl"
+        log_path = self.audit_dir / log_filename
+        
+        # Append action to log file
+        action_record = {
+            "timestamp": timestamp.isoformat(),
+            "action": action,
+            "details": details
+        }
+        
+        with open(log_path, 'a') as f:
+            f.write(json.dumps(action_record, default=str) + '\n')
