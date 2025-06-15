@@ -29,6 +29,8 @@ from .validator import TEEValidator
 from .benchmarker import Benchmarker
 from .llm_judge import LLMJudge
 from .strategy_verifier import StrategyVerifier
+from .audit_logger import AuditLogger
+from .parallel_verifier import ParallelVerifier
 
 console = Console()
 
@@ -88,7 +90,8 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        total_tasks = 4 if enable_llm else 3
+        # Now including strategy verification
+        total_tasks = 5 if enable_llm else 4
         task = progress.add_task("[cyan]Running verification...", total=total_tasks)
 
         # Docker scanning
@@ -139,7 +142,22 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
                 llm_result = None
             progress.advance(task)
 
-    # Show LLM analysis status
+        # Strategy verification with real market data
+        strategy_result = None
+        progress.update(task, description="[cyan]Verifying trading strategy...")
+        try:
+            verifier = StrategyVerifier()
+            # Use a short recent period by default
+            strategy_result = verifier.verify_strategy(
+                image,
+                use_regime="bull_2024"  # Use cached regime data if available
+            )
+        except Exception as e:
+            console.print(f"[yellow]Strategy verification skipped: {e}[/yellow]")
+            strategy_result = None
+        progress.advance(task)
+
+    # Show analysis status
     if enable_llm:
         if llm_result:
             console.print(
@@ -149,6 +167,12 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
             console.print(
                 "[yellow]🧠 LLM analysis not available (check API keys in .env)[/yellow]"
             )
+    
+    if strategy_result:
+        console.print(
+            f"[green]📈 Strategy verification completed - Type: {strategy_result.detected_strategy} "
+            f"(effectiveness: {strategy_result.strategy_effectiveness:.0f}/100)[/green]"
+        )
 
     # Display results
     if output == "json":
@@ -172,16 +196,48 @@ def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: s
             "tee_validation": tee_result,
             "performance_benchmark": perf_result,
             "llm_analysis": llm_result.model_dump(mode="json") if llm_result else None,
+            "strategy_verification": strategy_result.model_dump() if strategy_result else None,
             "agent_fort_score": _calculate_agent_fort_score(
-                scan_result, tee_result, perf_result, llm_result
+                scan_result, tee_result, perf_result, llm_result, strategy_result
             ),
             "overall_status": _determine_overall_status(
-                scan_result, tee_result, perf_result, llm_result
+                scan_result, tee_result, perf_result, llm_result, strategy_result
             ),
         }
         console.print_json(data=verification_result)
+        
+        # Log to audit trail
+        audit_logger = AuditLogger()
+        audit_logger.log_verification(
+            image=image,
+            verification_result=verification_result,
+            llm_reasoning=llm_result.reasoning if llm_result else None
+        )
     else:
-        _display_terminal_results(scan_result, tee_result, perf_result, llm_result)
+        _display_terminal_results(scan_result, tee_result, perf_result, llm_result, strategy_result)
+        
+        # Log to audit trail
+        audit_logger = AuditLogger()
+        verification_result = {
+            "image": image,
+            "tier": tier,
+            "docker_scan": scan_result,
+            "tee_validation": tee_result,
+            "performance_benchmark": perf_result,
+            "llm_analysis": llm_result.model_dump() if llm_result else None,
+            "strategy_verification": strategy_result.model_dump() if strategy_result else None,
+            "agent_fort_score": _calculate_agent_fort_score(
+                scan_result, tee_result, perf_result, llm_result, strategy_result
+            ),
+            "overall_status": _determine_overall_status(
+                scan_result, tee_result, perf_result, llm_result, strategy_result
+            ),
+        }
+        audit_logger.log_verification(
+            image=image,
+            verification_result=verification_result,
+            llm_reasoning=llm_result.reasoning if llm_result else None
+        )
 
 
 @cli.command()
@@ -640,7 +696,7 @@ def _display_benchmark_results(result: dict):
 
 
 def _display_terminal_results(
-    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None
+    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None, strategy_result=None
 ):
     """Display verification results in terminal format."""
     table = Table(title="Verification Results")
@@ -694,10 +750,19 @@ def _display_terminal_results(
             llm_status += f" | {flag_count} Flag{'s' if flag_count != 1 else ''}"
 
         table.add_row("LLM Analysis", llm_status)
+    
+    # Strategy verification
+    if strategy_result:
+        strategy_status = f"✓ {strategy_result.detected_strategy.title()} | "
+        strategy_status += f"Effectiveness: {strategy_result.strategy_effectiveness:.0f}/100 | "
+        strategy_status += f"Risk: {strategy_result.risk_score:.0f}/100"
+        
+        status_icon = "✓" if strategy_result.verification_status == "verified" else "⚠"
+        table.add_row("Strategy Verification", f"{status_icon} {strategy_status}")
 
     # Overall status
     overall_status = _determine_overall_status(
-        scan_result, tee_result, perf_result, llm_result
+        scan_result, tee_result, perf_result, llm_result, strategy_result
     )
     status_color = "green" if overall_status == "PASSED" else "red"
     table.add_row(
@@ -708,7 +773,7 @@ def _display_terminal_results(
 
     # Calculate Agent Fort Score
     score = _calculate_agent_fort_score(
-        scan_result, tee_result, perf_result, llm_result
+        scan_result, tee_result, perf_result, llm_result, strategy_result
     )
     score_color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
 
@@ -735,7 +800,7 @@ def _display_terminal_results(
 
 
 def _calculate_agent_fort_score(
-    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None
+    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None, strategy_result=None
 ) -> int:
     """Calculate Agent Fort score based on verification results with balanced scoring.
     
@@ -847,19 +912,41 @@ def _calculate_agent_fort_score(
     score += behavior_adjustment
 
     # PERFORMANCE VERIFICATION SCORING (-50 to +90 points, Phase 3B)
-    # This will be properly implemented in Phase 3B with real backtesting
-    # For now, using placeholder scoring
     performance_adjustment = 0
     
-    # Placeholder for future implementation:
-    # - Strategy verification: Does it actually arbitrage/MM/etc? (+40)
-    # - Risk compliance: Stays within limits (+20)
-    # - Consistency: Works across market regimes (+30)
-    # - Percentile ranking: Top 10% (+90), Bottom 10% (-50)
-    
-    # Current placeholder based on basic metrics
-    if error_rate == 0 and throughput > 1000:
-        performance_adjustment += 20  # Basic competence bonus
+    if strategy_result:
+        # Strategy verification: Does it actually work as advertised? (up to +40)
+        if strategy_result.verification_status == "verified":
+            performance_adjustment += 30
+        elif strategy_result.verification_status == "partial":
+            performance_adjustment += 15
+        else:
+            performance_adjustment -= 20
+            
+        # Effectiveness score contribution (up to +30)
+        effectiveness_bonus = (strategy_result.strategy_effectiveness / 100) * 30
+        performance_adjustment += effectiveness_bonus
+        
+        # Risk management (-20 to +10)
+        risk_penalty = 0
+        if strategy_result.risk_score > 80:
+            risk_penalty = -20  # Very high risk
+        elif strategy_result.risk_score > 60:
+            risk_penalty = -10  # High risk
+        elif strategy_result.risk_score < 30:
+            risk_penalty = 10   # Low risk, well managed
+        performance_adjustment += risk_penalty
+        
+        # Consistency across regimes (up to +20)
+        if hasattr(strategy_result, 'performance_by_regime'):
+            positive_regimes = sum(1 for r in strategy_result.performance_by_regime.values() 
+                                 if r.get('annualized_return', 0) > 0)
+            regime_bonus = (positive_regimes / len(strategy_result.performance_by_regime)) * 20
+            performance_adjustment += regime_bonus
+    else:
+        # No strategy verification available, use basic performance metrics
+        if error_rate == 0 and throughput > 1000:
+            performance_adjustment += 10  # Basic competence bonus
     
     # Final score calculation
     final_score = score + performance_adjustment
@@ -869,9 +956,9 @@ def _calculate_agent_fort_score(
 
 
 def _determine_overall_status(
-    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None
+    scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None, strategy_result=None
 ) -> str:
-    """Determine overall verification status with LLM insights."""
+    """Determine overall verification status with LLM and strategy insights."""
     vulns = scan_result.get("vulnerabilities", [])
     critical = len([v for v in vulns if v.get("severity") == "CRITICAL"])
     high = len([v for v in vulns if v.get("severity") == "HIGH"])
@@ -922,8 +1009,190 @@ def _determine_overall_status(
         return "WARNING"
     if llm_result and llm_result.confidence_level < 0.5:  # Low LLM confidence
         return "WARNING"
+    
+    # Strategy verification checks
+    if strategy_result:
+        if strategy_result.verification_status == "failed":
+            return "FAILED"
+        if strategy_result.risk_score > 80:  # Very high risk strategy
+            return "WARNING"
+        if strategy_result.strategy_effectiveness < 40:  # Low effectiveness
+            return "WARNING"
 
     return "PASSED"
+
+
+@cli.command()
+@click.option(
+    "--image",
+    help="Filter audits by image name",
+)
+@click.option(
+    "--latest",
+    is_flag=True,
+    help="Show only the latest audit for each image",
+)
+def audit_list(image: str, latest: bool):
+    """List verification audit records.
+    
+    Shows historical verification results with audit trail.
+    
+    Examples:
+        arc-verifier audit-list
+        arc-verifier audit-list --image shade/finance-agent
+        arc-verifier audit-list --latest
+    """
+    audit_logger = AuditLogger()
+    audits = audit_logger.list_audits(image_filter=image)
+    
+    if not audits:
+        console.print("[yellow]No audit records found[/yellow]")
+        return
+        
+    table = Table(title="Verification Audit Trail")
+    table.add_column("Timestamp", style="cyan")
+    table.add_column("Image", style="yellow")
+    table.add_column("Fort Score", style="green")
+    table.add_column("Status", style="bold")
+    
+    # Filter to latest if requested
+    if latest:
+        seen_images = set()
+        filtered_audits = []
+        for audit in audits:
+            if audit["image"] not in seen_images:
+                filtered_audits.append(audit)
+                seen_images.add(audit["image"])
+        audits = filtered_audits
+    
+    for audit in audits:
+        status_color = "green" if audit["status"] == "PASSED" else "red"
+        table.add_row(
+            audit["timestamp"],
+            audit["image"],
+            str(audit["fort_score"]),
+            f"[{status_color}]{audit['status']}[/{status_color}]"
+        )
+        
+    console.print(table)
+    console.print(f"\n[dim]Total records: {len(audits)}[/dim]")
+
+
+@cli.command()
+@click.argument("images", nargs=-1, required=True)
+@click.option(
+    "--tier",
+    type=click.Choice(["high", "medium", "low"]),
+    default="medium",
+    help="Security tier for verification",
+)
+@click.option(
+    "--output",
+    type=click.Choice(["terminal", "json"]),
+    default="terminal",
+    help="Output format",
+)
+@click.option(
+    "--enable-llm/--no-llm",
+    default=True,
+    help="Enable LLM-based behavioral analysis (default: enabled)",
+)
+@click.option(
+    "--llm-provider",
+    type=click.Choice(["anthropic", "openai", "local"]),
+    default="anthropic",
+    help="LLM provider for analysis",
+)
+@click.option(
+    "--max-concurrent",
+    type=int,
+    default=3,
+    help="Maximum concurrent verifications (default: 3)",
+)
+def verify_batch(
+    images: tuple,
+    tier: str,
+    output: str,
+    enable_llm: bool,
+    llm_provider: str,
+    max_concurrent: int,
+):
+    """Verify multiple Docker images in parallel using Dagger.
+
+    Performs comprehensive verification of multiple agents concurrently,
+    including vulnerability scanning, TEE attestation, and performance benchmarking.
+
+    Examples:
+        arc-verifier verify-batch shade/agent1:latest shade/agent2:latest
+        arc-verifier verify-batch myagent:v1 myagent:v2 myagent:v3 --tier high
+        arc-verifier verify-batch agent1:latest agent2:latest --max-concurrent 5
+        arc-verifier verify-batch --output json agent1:latest agent2:latest agent3:latest
+    """
+    if not images:
+        console.print("[red]Error: No images provided[/red]")
+        raise click.ClickException("At least one image must be specified")
+    
+    console.print(f"[bold blue]Starting batch verification of {len(images)} images[/bold blue]")
+    console.print(f"Security tier: {tier}")
+    console.print(f"Max concurrent: {max_concurrent}")
+    
+    # Initialize parallel verifier
+    verifier = ParallelVerifier(max_concurrent=max_concurrent)
+    
+    # Run async verification
+    import asyncio
+    try:
+        result = asyncio.run(
+            verifier.verify_batch(
+                list(images),
+                tier=tier,
+                enable_llm=enable_llm,
+                llm_provider=llm_provider
+            )
+        )
+        
+        if output == "json":
+            # Convert to JSON-serializable format
+            json_result = {
+                "batch_verification": {
+                    "total_images": result.total_images,
+                    "successful": result.successful,
+                    "failed": result.failed,
+                    "duration_seconds": result.duration_seconds,
+                    "timestamp": result.timestamp.isoformat(),
+                    "images": list(images),
+                    "results": result.results
+                }
+            }
+            console.print_json(data=json_result)
+            
+            # Log batch results
+            audit_logger = AuditLogger()
+            for res in result.results:
+                audit_logger.log_verification(
+                    image=res["image"],
+                    verification_result=res,
+                    llm_reasoning=res.get("llm_analysis", {}).get("reasoning") if res.get("llm_analysis") else None
+                )
+        else:
+            # Terminal output is handled by ParallelVerifier
+            # Log batch results
+            audit_logger = AuditLogger()
+            for res in result.results:
+                audit_logger.log_verification(
+                    image=res["image"],
+                    verification_result=res,
+                    llm_reasoning=res.get("llm_analysis", {}).get("reasoning") if res.get("llm_analysis") else None
+                )
+            
+            # Display final summary
+            console.print(f"\n[bold]Batch Verification Complete[/bold]")
+            console.print(f"Total time: {result.duration_seconds:.1f}s")
+            console.print(f"Success rate: {(result.successful / result.total_images * 100):.1f}%")
+            
+    except Exception as e:
+        console.print(f"[red]Batch verification failed: {e}[/red]")
+        raise click.ClickException(str(e))
 
 
 if __name__ == "__main__":
