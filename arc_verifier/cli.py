@@ -2,15 +2,30 @@
 
 import click
 import json
+import os
+from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    # Look for .env file in current directory or project root
+    env_paths = [Path.cwd() / ".env", Path(__file__).parent.parent / ".env"]
+    for env_path in env_paths:
+        if env_path.exists():
+            load_dotenv(env_path)
+            break
+except ImportError:
+    pass  # dotenv not available, continue without it
+
 from . import __version__
 from .scanner import DockerScanner
 from .validator import TEEValidator
 from .benchmarker import Benchmarker
+from .llm_judge import LLMJudge
 
 console = Console()
 
@@ -32,7 +47,11 @@ def cli():
               default='medium', help='Security tier for verification')
 @click.option('--output', type=click.Choice(['terminal', 'json']), 
               default='terminal', help='Output format')
-def verify(image: str, tier: str, output: str):
+@click.option('--enable-llm/--no-llm', default=True,
+              help='Enable LLM-based behavioral analysis (default: enabled)')
+@click.option('--llm-provider', type=click.Choice(['anthropic', 'openai', 'local']),
+              default='anthropic', help='LLM provider for analysis')
+def verify(image: str, tier: str, output: str, enable_llm: bool, llm_provider: str):
     """Verify a Docker image for NEAR Agent Fort deployment.
     
     Performs comprehensive verification including vulnerability scanning,
@@ -51,7 +70,8 @@ def verify(image: str, tier: str, output: str):
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("[cyan]Running verification...", total=3)
+        total_tasks = 4 if enable_llm else 3
+        task = progress.add_task("[cyan]Running verification...", total=total_tasks)
         
         # Docker scanning
         progress.update(task, description="[cyan]Scanning Docker image...")
@@ -71,6 +91,30 @@ def verify(image: str, tier: str, output: str):
         benchmark_type = "trading" if any(pattern in image.lower() for pattern in ['shade', 'agent', 'finance']) else "standard"
         perf_result = benchmarker.run(image, duration=30, benchmark_type=benchmark_type)
         progress.advance(task)
+        
+        # LLM-based behavioral analysis
+        llm_result = None
+        if enable_llm:
+            progress.update(task, description="[cyan]Running LLM behavioral analysis...")
+            try:
+                llm_judge = LLMJudge(primary_provider=llm_provider)
+                llm_result = llm_judge.evaluate_agent(
+                    image_data=scan_result,
+                    market_context={"tier": tier, "timestamp": scan_result.get('timestamp')}
+                )
+            except Exception as e:
+                import traceback
+                console.print(f"[red]LLM analysis failed: {e}[/red]")
+                console.print(f"[red]Traceback: {traceback.format_exc()}[/red]")
+                llm_result = None
+            progress.advance(task)
+    
+    # Show LLM analysis status
+    if enable_llm:
+        if llm_result:
+            console.print(f"[green]🧠 LLM behavioral analysis completed - Strategy: {llm_result.intent_classification.primary_strategy}[/green]")
+        else:
+            console.print("[yellow]🧠 LLM analysis not available (check API keys in .env)[/yellow]")
     
     # Display results
     if output == 'json':
@@ -89,12 +133,13 @@ def verify(image: str, tier: str, output: str):
             "docker_scan": scan_result_json,
             "tee_validation": tee_result,
             "performance_benchmark": perf_result,
-            "agent_fort_score": _calculate_agent_fort_score(scan_result, tee_result, perf_result),
-            "overall_status": _determine_overall_status(scan_result, tee_result, perf_result)
+            "llm_analysis": llm_result.model_dump(mode='json') if llm_result else None,
+            "agent_fort_score": _calculate_agent_fort_score(scan_result, tee_result, perf_result, llm_result),
+            "overall_status": _determine_overall_status(scan_result, tee_result, perf_result, llm_result)
         }
         console.print_json(data=verification_result)
     else:
-        _display_terminal_results(scan_result, tee_result, perf_result)
+        _display_terminal_results(scan_result, tee_result, perf_result, llm_result)
 
 
 @cli.command()
@@ -223,7 +268,7 @@ def _display_benchmark_results(result: dict):
             console.print(trading_table)
 
 
-def _display_terminal_results(scan_result: dict, tee_result: dict, perf_result: dict):
+def _display_terminal_results(scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None):
     """Display verification results in terminal format."""
     table = Table(title="Verification Results")
     table.add_column("Check", style="cyan")
@@ -260,27 +305,58 @@ def _display_terminal_results(scan_result: dict, tee_result: dict, perf_result: 
     avg_latency = perf_metrics.get('avg_latency_ms', 0)
     table.add_row("Performance", f"✓ {throughput:.0f} TPS, {avg_latency:.1f}ms avg")
     
+    # LLM Analysis (if available)
+    if llm_result:
+        intent = llm_result.intent_classification
+        risk_profile = intent.risk_profile
+        strategy = intent.primary_strategy
+        confidence = llm_result.confidence_level
+        
+        llm_status = f"✓ {strategy.title()} | {risk_profile.title()} Risk | {confidence:.0%} Confidence"
+        if llm_result.behavioral_flags:
+            flag_count = len(llm_result.behavioral_flags)
+            llm_status += f" | {flag_count} Flag{'s' if flag_count != 1 else ''}"
+        
+        table.add_row("LLM Analysis", llm_status)
+    
     # Overall status
-    overall_status = _determine_overall_status(scan_result, tee_result, perf_result)
+    overall_status = _determine_overall_status(scan_result, tee_result, perf_result, llm_result)
     status_color = "green" if overall_status == "PASSED" else "red"
     table.add_row("Overall Status", f"[{status_color}]✓ {overall_status}[/{status_color}]")
     
     console.print(table)
     
     # Calculate Agent Fort Score
-    score = _calculate_agent_fort_score(scan_result, tee_result, perf_result)
+    score = _calculate_agent_fort_score(scan_result, tee_result, perf_result, llm_result)
     score_color = "green" if score >= 80 else "yellow" if score >= 60 else "red"
     
+    # Enhanced score display with LLM insights
+    score_text = f"[bold {score_color}]{score}/180[/bold {score_color}]"
+    if llm_result and llm_result.score_adjustments:
+        total_llm_adjustment = sum(llm_result.score_adjustments.values())
+        if total_llm_adjustment != 0:
+            adjustment_color = "green" if total_llm_adjustment > 0 else "red"
+            score_text += f"\n[{adjustment_color}]LLM Adjustment: {total_llm_adjustment:+.1f}[/{adjustment_color}]"
+    
     score_panel = Panel(
-        f"[bold {score_color}]{score}/100[/bold {score_color}]",
+        score_text,
         title="Agent Fort Score",
         border_style=score_color
     )
     console.print(score_panel)
+    
+    # Display LLM insights if available
+    if llm_result and llm_result.reasoning:
+        insights_panel = Panel(
+            llm_result.reasoning[:300] + ("..." if len(llm_result.reasoning) > 300 else ""),
+            title="🧠 LLM Insights",
+            border_style="blue"
+        )
+        console.print(insights_panel)
 
 
-def _calculate_agent_fort_score(scan_result: dict, tee_result: dict, perf_result: dict) -> int:
-    """Calculate Agent Fort score based on verification results."""
+def _calculate_agent_fort_score(scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None) -> int:
+    """Calculate Agent Fort score based on verification results with LLM augmentation."""
     score = 100
     
     # Vulnerability penalties
@@ -332,11 +408,33 @@ def _calculate_agent_fort_score(scan_result: dict, tee_result: dict, perf_result
     elif error_rate > 1:
         score -= 5
     
-    return max(0, min(100, score))
+    # LLM-based adjustments (Phase 2 innovation)
+    if llm_result and llm_result.score_adjustments:
+        for category, adjustment in llm_result.score_adjustments.items():
+            score += adjustment
+            
+        # Additional LLM-based factors
+        if hasattr(llm_result, 'code_quality') and llm_result.code_quality:
+            # Bonus/penalty based on code quality assessment
+            code_quality_bonus = (llm_result.code_quality.overall_score - 0.5) * 20
+            score += code_quality_bonus
+            
+        # Risk assessment adjustments
+        if hasattr(llm_result, 'risk_assessment') and llm_result.risk_assessment:
+            # Penalty for high systemic risk
+            systemic_risk_penalty = llm_result.risk_assessment.systemic_risk_score * 15
+            score -= systemic_risk_penalty
+            
+        # Behavioral flags penalty
+        if llm_result.behavioral_flags:
+            score -= len(llm_result.behavioral_flags) * 5
+    
+    # New scoring range: 0-180 points (base 100 + up to 80 from LLM adjustments)
+    return max(0, min(180, int(score)))
 
 
-def _determine_overall_status(scan_result: dict, tee_result: dict, perf_result: dict) -> str:
-    """Determine overall verification status."""
+def _determine_overall_status(scan_result: dict, tee_result: dict, perf_result: dict, llm_result=None) -> str:
+    """Determine overall verification status with LLM insights."""
     vulns = scan_result.get('vulnerabilities', [])
     critical = len([v for v in vulns if v.get('severity') == 'CRITICAL'])
     high = len([v for v in vulns if v.get('severity') == 'HIGH'])
@@ -346,18 +444,38 @@ def _determine_overall_status(scan_result: dict, tee_result: dict, perf_result: 
     perf_metrics = perf_result.get('performance', {})
     error_rate = perf_metrics.get('error_rate_percent', 0)
     
-    # Fail conditions
+    # LLM-based risk factors
+    llm_risk_flags = 0
+    if llm_result:
+        # Count serious behavioral flags
+        serious_flags = [flag for flag in llm_result.behavioral_flags 
+                        if any(keyword in flag.lower() for keyword in 
+                              ['malicious', 'suspicious', 'high risk', 'dangerous'])]
+        llm_risk_flags = len(serious_flags)
+        
+        # Check for high systemic risk
+        if (hasattr(llm_result, 'risk_assessment') and llm_result.risk_assessment and
+            llm_result.risk_assessment.systemic_risk_score > 0.8):
+            llm_risk_flags += 1
+    
+    # Fail conditions (enhanced with LLM)
     if critical > 0:
         return "FAILED"
     if not tee_valid:
         return "FAILED"
     if error_rate > 10:
         return "FAILED"
+    if llm_risk_flags >= 2:  # Multiple serious LLM flags
+        return "FAILED"
     
-    # Warning conditions
+    # Warning conditions (enhanced with LLM)
     if high > 5:
         return "WARNING"
     if error_rate > 5:
+        return "WARNING"
+    if llm_risk_flags >= 1:  # Single serious LLM flag
+        return "WARNING"
+    if (llm_result and llm_result.confidence_level < 0.5):  # Low LLM confidence
         return "WARNING"
     
     return "PASSED"

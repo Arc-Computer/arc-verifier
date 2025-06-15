@@ -60,6 +60,12 @@ cache/
 reports/
 *.log
 verification_*.json
+.trivy-cache/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
 
 # Docker
 .dockerignore
