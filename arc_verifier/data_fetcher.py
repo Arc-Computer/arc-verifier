@@ -86,13 +86,13 @@ class BinanceDataFetcher:
             return pd.DataFrame()
             
         # Combine all data
-        df = pd.concat(all_data, ignore_index=True)
+        df = pd.concat(all_data)
         
-        # Sort by timestamp
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        # Sort by index (timestamp)
+        df = df.sort_index()
         
         # Filter to exact date range
-        df = df[(df['timestamp'] >= start) & (df['timestamp'] <= end)]
+        df = df[(df.index >= start) & (df.index <= end)]
         
         self.console.print(f"[green]Loaded {len(df)} candles[/green]")
         
@@ -251,6 +251,9 @@ class BinanceDataFetcher:
         # Convert numeric columns
         numeric_cols = ['open', 'high', 'low', 'close', 'volume', 'quote_volume']
         df[numeric_cols] = df[numeric_cols].astype(float)
+        
+        # Set timestamp as index
+        df.set_index('timestamp', inplace=True)
         
         return df
     

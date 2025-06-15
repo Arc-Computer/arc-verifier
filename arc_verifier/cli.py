@@ -337,25 +337,81 @@ def simulate(image: str, scenario: str, output: str):
     help="Strategy type to simulate",
 )
 @click.option(
+    "--regime",
+    type=click.Choice(["bull_2024", "bear_2024", "volatile_2024", "sideways_2024"]),
+    default=None,
+    help="Use pre-defined market regime (overrides start/end dates)",
+)
+@click.option(
+    "--use-real-data/--use-mock-data",
+    default=True,
+    help="Use real market data (if available) or mock data",
+)
+@click.option(
     "--output",
     type=click.Choice(["terminal", "json"]),
     default="terminal",
     help="Output format",
 )
-def backtest(image: str, start_date: str, end_date: str, strategy: str, output: str):
+def backtest(
+    image: str, 
+    start_date: str, 
+    end_date: str, 
+    strategy: str, 
+    regime: str,
+    use_real_data: bool,
+    output: str
+):
     """Run historical backtest on a trading agent.
 
     Simulates agent performance using historical market data to predict profitability.
 
     Examples:
         arc-verifier backtest shade/arbitrage-agent:latest
-        arc-verifier backtest myagent:latest --start-date 2023-01-01 --strategy momentum
+        arc-verifier backtest myagent:latest --regime bull_2024
+        arc-verifier backtest agent:v1 --strategy momentum --use-mock-data
         arc-verifier backtest agent:v1 --output json
     """
+    # Try to use real backtester if available and requested
+    if use_real_data:
+        try:
+            from .real_backtester import RealBacktester
+            from .data_registry import DataRegistry
+            
+            # Check if we have real data available
+            registry = DataRegistry()
+            has_data = len(registry.registry.get("cached_files", {})) > 0
+            
+            if has_data:
+                console.print("[green]Using real market data for backtest[/green]")
+                backtester = RealBacktester()
+                result = backtester.run(
+                    image, 
+                    start_date, 
+                    end_date, 
+                    strategy,
+                    use_cached_regime=regime
+                )
+                
+                if output == "json":
+                    console.print_json(data=result.model_dump())
+                else:
+                    backtester.display_results(result)
+                return
+            else:
+                console.print("[yellow]No real market data cached, falling back to mock data[/yellow]")
+                console.print("[dim]Tip: Run 'python scripts/download_market_data.py --regimes' to download data[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Failed to use real data: {e}. Falling back to mock data[/yellow]")
+    
+    # Fall back to mock backtester
     from .backtester import Backtester
-
+    
     console.print(f"[bold blue]Backtesting image: {image}[/bold blue]")
     console.print(f"Period: {start_date} to {end_date} | Strategy: {strategy}")
+    
+    if use_real_data:
+        console.print("[yellow]Using mock data (real data not available)[/yellow]")
 
     # Run backtest
     backtester = Backtester()
@@ -366,7 +422,7 @@ def backtest(image: str, start_date: str, end_date: str, strategy: str, output: 
     else:
         backtester.display_results(result)
 
-        # Investment recommendation
+        # Investment recommendation (using mock backtester's simpler logic)
         metrics = result.metrics
         if metrics.sharpe_ratio > 1.5 and metrics.max_drawdown > -0.20:
             rating = "[green]A - Highly Recommended[/green]"
