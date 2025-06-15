@@ -4,22 +4,45 @@ __version__ = "0.1.0"
 __author__ = "NEAR Protocol"
 __description__ = "Lightweight NEAR Protocol agent verification tool for Agent Forts"
 
-from .scanner import DockerScanner
-from .validator import TEEValidator
-from .benchmarker import Benchmarker
-from .audit_logger import AuditLogger
-from .verification_pipeline import VerificationPipeline, AgentStrategy
-from .data_fetcher import BinanceDataFetcher, MarketDataManager
-from .data_registry import DataRegistry
+# High-level verification interfaces
+from .core import CoreArcVerifier, ResourceLimits, CoreVerificationResult, BatchVerificationResult
+from .core import VerificationPipeline, AgentStrategy
+
+# Component modules
+from . import security, analysis, data, orchestration, utils
+
+# Backward compatibility - commonly used classes
+from .security import DockerScanner, TEEValidator, AuditLogger
+from .analysis import Benchmarker, LLMJudge, StrategyVerifier
+from .data import RealBacktester, BinanceDataFetcher, MarketDataManager, DataRegistry
+from .orchestration import ParallelVerifier
 
 __all__ = [
-    "DockerScanner", 
+    # Core verification
+    "CoreArcVerifier", 
+    "ResourceLimits",
+    "CoreVerificationResult",
+    "BatchVerificationResult",
+    "VerificationPipeline",
+    "AgentStrategy",
+    
+    # Component modules
+    "security",
+    "analysis", 
+    "data",
+    "orchestration",
+    "utils",
+    
+    # Backward compatibility
+    "DockerScanner",
     "TEEValidator", 
     "Benchmarker",
     "AuditLogger",
-    "VerificationPipeline",
-    "AgentStrategy",
+    "LLMJudge",
+    "StrategyVerifier",
+    "RealBacktester",
     "BinanceDataFetcher",
     "MarketDataManager",
-    "DataRegistry"
+    "DataRegistry",
+    "ParallelVerifier"
 ]

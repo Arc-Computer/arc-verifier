@@ -10,7 +10,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .tee import PhalaCloudValidator, CodeHashRegistry, AttestationVerifier
+from ..tee import PhalaCloudValidator, CodeHashRegistry, AttestationVerifier
 
 
 class TEEValidator:

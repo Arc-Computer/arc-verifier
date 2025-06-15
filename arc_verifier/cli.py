@@ -24,14 +24,10 @@ except ImportError:
     pass  # dotenv not available, continue without it
 
 from . import __version__
-from .scanner import DockerScanner
-from .validator import TEEValidator
-from .benchmarker import Benchmarker
-from .llm_judge import LLMJudge
-from .strategy_verifier import StrategyVerifier
-from .audit_logger import AuditLogger
-from .parallel_verifier import ParallelVerifier
-from .core_verifier import CoreArcVerifier, ResourceLimits
+from .security import DockerScanner, TEEValidator, AuditLogger
+from .analysis import Benchmarker, LLMJudge, StrategyVerifier
+from .orchestration import ParallelVerifier
+from .core import CoreArcVerifier, ResourceLimits
 
 console = Console()
 

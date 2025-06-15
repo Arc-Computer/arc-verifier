@@ -17,12 +17,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.table import Table
 from rich.panel import Panel
 
-from .scanner import DockerScanner
-from .validator import TEEValidator
-from .real_backtester import RealBacktester
-from .strategy_verifier import StrategyVerifier
-from .llm_judge import LLMJudge
-from .audit_logger import AuditLogger
+from ..security.scanner import DockerScanner
+from ..security.tee_validator import TEEValidator
+from ..data.backtester import RealBacktester
+from ..analysis.strategy import StrategyVerifier
+from ..analysis.llm_judge import LLMJudge
+from ..security.audit import AuditLogger
 
 
 @dataclass

@@ -8,11 +8,9 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from .scanner import DockerScanner
-from .validator import TEEValidator
-from .benchmarker import Benchmarker
-from .llm_judge import LLMJudge
-from .simulator import AgentSimulator, ScenarioLibrary, SimulationScenario
+from ..security import DockerScanner, TEEValidator
+from ..analysis import Benchmarker, LLMJudge
+from ..utils.simulator import AgentSimulator, ScenarioLibrary, SimulationScenario
 
 
 class AgentStrategy(Enum):

@@ -13,8 +13,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from .data_fetcher import MarketDataManager
-from .data_registry import DataRegistry
+from .fetcher import MarketDataManager
+from .registry import DataRegistry
 
 
 class MarketRegime(Enum):

@@ -16,7 +16,7 @@ import pandas as pd
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from .data_registry import DataRegistry
+from .registry import DataRegistry
 
 
 class BinanceDataFetcher:

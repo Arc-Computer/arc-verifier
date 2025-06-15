@@ -11,11 +11,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.table import Table
 from pydantic import BaseModel
 
-from .scanner import DockerScanner
-from .validator import TEEValidator
-from .benchmarker import Benchmarker
-from .llm_judge import LLMJudge
-from .strategy_verifier import StrategyVerifier
+from ..security import DockerScanner, TEEValidator
+from ..analysis import Benchmarker, LLMJudge, StrategyVerifier
 
 
 class VerificationTask(BaseModel):

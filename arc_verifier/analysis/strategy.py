@@ -14,9 +14,9 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-from .real_backtester import RealBacktester, BacktestResult, MarketRegime
-from .data_registry import DataRegistry
-from .audit_logger import AuditLogger
+from ..data.backtester import RealBacktester, BacktestResult, MarketRegime
+from ..data.registry import DataRegistry
+from ..security.audit import AuditLogger
 
 
 class StrategyType(Enum):
