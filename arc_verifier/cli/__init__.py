@@ -18,11 +18,13 @@ from .. import __version__
 # Import all command groups
 from .commands import (
     # Verification commands
-    verify, core_verify, verify_batch, verify_strategy,
+    verify, batch,
     # Component commands  
     scan, benchmark, backtest, simulate,
     # Management commands
-    init, audit_list
+    init, audit_list,
+    # Command groups
+    config, data, export
 )
 
 console = Console()
@@ -31,30 +33,34 @@ console = Console()
 @click.group()
 @click.version_option(version=__version__, prog_name="arc-verifier")
 def cli():
-    """Arc-Verifier: Lightweight NEAR Protocol agent verification tool.
+    """Arc-Verifier: Verification and evaluation framework for agentic protocols.
 
-    Provides Docker image scanning, TEE attestation validation, and performance
-    benchmarking for NEAR Agent Forts evaluation.
+    Simulates, backtests, and evaluates autonomous agents using historical 
+    transaction data and latest security standards. Built for developers to 
+    stress test and measure performance and reliability of agent systems.
     """
     pass
 
 
 # Add all commands to the CLI group
-# Verification commands
+# Primary verification commands
 cli.add_command(verify)
-cli.add_command(core_verify, name="core-verify")
-cli.add_command(verify_batch, name="verify-batch")
-cli.add_command(verify_strategy, name="verify-strategy")
+cli.add_command(batch)
 
-# Component commands
+# Component testing commands
 cli.add_command(scan)
 cli.add_command(benchmark)
 cli.add_command(backtest)
 cli.add_command(simulate)
 
-# Management commands  
+# Setup and management
 cli.add_command(init)
-cli.add_command(audit_list, name="audit-list")
+cli.add_command(audit_list, name="history")
+
+# Command groups
+cli.add_command(config)
+cli.add_command(data)
+cli.add_command(export)
 
 
 # Entry point for module execution

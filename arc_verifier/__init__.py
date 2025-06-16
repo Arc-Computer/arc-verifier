@@ -1,8 +1,12 @@
-"""Arc-Verifier: Lightweight NEAR Protocol agent verification tool."""
+"""Arc-Verifier: Verification and evaluation framework for agentic protocols.
+
+Simulates, backtests, and evaluates autonomous agents using historical 
+transaction data and latest security standards.
+"""
 
 __version__ = "0.1.0"
 __author__ = "NEAR Protocol"
-__description__ = "Lightweight NEAR Protocol agent verification tool for Agent Forts"
+__description__ = "Verification and evaluation framework for agentic protocols"
 
 # High-level verification interfaces
 from .core import CoreArcVerifier, ResourceLimits, CoreVerificationResult, BatchVerificationResult
@@ -11,6 +15,9 @@ from .core import VerificationPipeline, AgentStrategy
 # Component modules
 from . import security, analysis, data, orchestration, utils
 
+# Public API module
+from . import api
+
 # Backward compatibility - commonly used classes
 from .security import DockerScanner, TEEValidator, AuditLogger
 from .analysis import Benchmarker, LLMJudge, StrategyVerifier
@@ -18,6 +25,12 @@ from .data import RealBacktester, BinanceDataFetcher, MarketDataManager, DataReg
 from .orchestration import ParallelVerifier
 
 __all__ = [
+    # Version info
+    "__version__",
+    
+    # Public API
+    "api",
+    
     # Core verification
     "CoreArcVerifier", 
     "ResourceLimits",
