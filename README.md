@@ -325,7 +325,6 @@ Fort Score: 145/180 (Deploy with confidence)
 
 Arc-Verifier integrates with various agentic protocol infrastructures:
 
-- **NEAR Chain Signatures**: Verify multichain agents using NEAR's MPC infrastructure
 - **Intent-based Systems**: Validate agents executing cross-chain intents
 - **TEE-based Protocols**: Comprehensive attestation for Phala, Oasis, and other TEE networks
 - **General Agent Frameworks**: Protocol-agnostic verification for any containerized agent
