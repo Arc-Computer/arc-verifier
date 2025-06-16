@@ -22,7 +22,7 @@ def test_cli_version():
     runner = CliRunner()
     result = runner.invoke(cli, ['--version'])
     assert result.exit_code == 0
-    assert '1.0.0b1' in result.output
+    assert '0.1.2' in result.output
 
 
 def test_verify_command_help():

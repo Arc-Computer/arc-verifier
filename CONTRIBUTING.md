@@ -421,7 +421,7 @@ Clear description of the issue
 3. Actual behavior: Agent incorrectly approved
 
 ## Environment
-- Arc-Verifier version: 0.1.0
+- Arc-Verifier version: 0.1.2
 - Python version: 3.9.7
 - Operating system: Ubuntu 22.04
 - Docker version: 24.0.0

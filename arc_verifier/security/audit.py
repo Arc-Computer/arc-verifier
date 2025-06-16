@@ -45,7 +45,7 @@ class AuditLogger:
             "results": verification_result,
             "data_hashes": self._calculate_data_hashes(verification_result),
             "environment": {
-                "arc_verifier_version": "0.1.0",
+                "arc_verifier_version": "0.1.2",
                 "python_version": os.sys.version,
             }
         }

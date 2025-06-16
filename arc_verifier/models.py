@@ -280,7 +280,7 @@ class ExportableResult:
     
     # Metadata
     export_format: str = "html"  # html, json, pdf
-    arc_verifier_version: str = "0.1.0"
+    arc_verifier_version: str = "0.1.2"
     
     def to_html(self) -> str:
         """Generate HTML report."""
