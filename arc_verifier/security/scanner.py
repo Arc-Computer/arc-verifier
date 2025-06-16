@@ -50,8 +50,8 @@ class ScanResult(BaseModel):
 class DockerScanner:
     """Docker image scanner for vulnerability detection and analysis."""
 
-    def __init__(self, force_mock=False):
-        self.console = Console()
+    def __init__(self, force_mock=False, console=None):
+        self.console = console or Console()
         if force_mock:
             self.client = None
             self.docker_available = False

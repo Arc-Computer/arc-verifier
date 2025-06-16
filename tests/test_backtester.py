@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from arc_verifier.real_backtester import (
+from arc_verifier.data.backtester import (
     RealBacktester, MarketRegime, Trade, PerformanceMetrics,
     BacktestResult, RealMarketDataProvider, StrategyEngine
 )

@@ -1,7 +1,7 @@
 """Tests for the TEE validator module."""
 
 import pytest
-from arc_verifier.validator import TEEValidator
+from arc_verifier.security.tee_validator import TEEValidator
 
 
 def test_validator_init():

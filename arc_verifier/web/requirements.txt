@@ -1,0 +1,10 @@
+# Web UI Dependencies for Arc-Verifier
+
+# Flask web framework
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# Additional optional dependencies for enhanced features
+gunicorn>=21.2.0  # Production WSGI server
+flask-compress>=1.14  # Response compression
+flask-caching>=2.1.0  # Caching support

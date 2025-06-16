@@ -1,10 +1,88 @@
 # Arc-Verifier
 
-Open source verification infrastructure for autonomous agents across agentic protocols. Comprehensive security, performance, and behavioral analysis for AI agents that manage real assets and execute transactions.
+Open source verification infrastructure for autonomous agents across agentic protocols. The industry standard for comprehensive security validation, behavioral verification, and performance certification of AI agents that manage real assets.
 
 ## Overview
 
-Arc-Verifier provides automated evaluation of autonomous agents deployed on agentic protocols including NEAR Chain Signatures, multichain intent systems, and other agent-based infrastructures. As autonomous agents increasingly manage capital and execute decisions without human intervention, verification becomes critical for protocol safety and user trust.
+Arc-Verifier provides automated evaluation of autonomous agents deployed on agentic protocols including NEAR Chain Signatures, multichain intent systems, and TEE-based infrastructures. As autonomous agents increasingly manage billions in capital and execute decisions without human intervention, verification becomes critical for protocol safety and user trust.
+
+### Key Features
+
+- 🔒 **Security Validation**: Container scanning, TEE attestation, key management verification
+- 📊 **Strategy Verification**: Validates agents do what they claim with real market data
+- 🏆 **Fort Score™**: Industry-first trustworthiness metric (0-180)
+- ⚡ **Production Scale**: Verify 100+ agents in parallel
+- 🤖 **AI Analysis**: LLM-powered behavioral assessment and risk detection
+- 🌐 **Protocol Agnostic**: Works with any containerized agent
+
+## Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Input"
+        A[Docker Image]
+    end
+    
+    subgraph "Verification Pipeline"
+        B[Security Scanner<br/>CVE Detection]
+        C[TEE Validator<br/>Hardware Attestation]
+        D[Performance Tester<br/>Load & Stress]
+        E[Strategy Verifier<br/>Backtesting]
+        F[LLM Judge<br/>Behavioral Analysis]
+    end
+    
+    subgraph "Scoring Engine"
+        G[Fort Score Calculator<br/>0-180 Points]
+    end
+    
+    subgraph "Outputs"
+        H[Verification Report]
+        I[Web Dashboard]
+        J[CI/CD Integration]
+    end
+    
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    G --> I
+    G --> J
+    
+    style A fill:#e1f5fe
+    style G fill:#fff9c4
+    style H fill:#c8e6c9
+    style I fill:#c8e6c9
+    style J fill:#c8e6c9
+```
+
+### Component Architecture
+
+```
+arc-verifier/
+├── core/                 # Core verification engine
+│   ├── verifier.py      # Main orchestrator
+│   └── pipeline.py      # Pipeline coordination
+├── security/            # Security components
+│   ├── scanner.py       # Vulnerability scanning
+│   └── tee_validator.py # TEE attestation
+├── analysis/            # Analysis engines
+│   ├── performance.py   # Load testing
+│   ├── strategy.py      # Strategy verification
+│   └── llm_judge/       # AI behavioral analysis
+├── data/                # Market data management
+│   ├── backtester.py    # Historical testing
+│   └── fetcher.py       # Data collection
+├── orchestration/       # Scaling infrastructure
+│   └── parallel.py      # Concurrent verification
+├── web/                 # Web UI dashboard
+│   ├── templates/       # HTML templates
+│   └── static/          # CSS/JS assets
+└── cli/                 # Command-line interface
+    └── commands/        # CLI commands
+```
 
 ## Architecture
 
@@ -89,42 +167,59 @@ Docker Image → Security Scan → TEE Validation → Performance Test → Strat
    - Intent classification and validation
    - Deception and malicious pattern detection
 
-## Usage
+## Quick Start
 
-### Command Line Interface
+### Installation
 
 ```bash
-# Install
+# Install from PyPI
 pip install arc-verifier
 
+# Install with all features
+pip install 'arc-verifier[llm,web]'
+
+# Initialize environment
+arc-verifier init
+```
+
+### Basic Usage
+
+```bash
 # Verify single agent
-arc-verifier verify myagent:latest --tier high
+arc-verifier verify myagent:latest
 
-# Batch verification
-arc-verifier verify-batch agent1:latest agent2:latest --max-concurrent 10
+# Verify with high security requirements
+arc-verifier verify prod-agent:latest --tier high
 
-# Strategy-specific analysis
-arc-verifier verify-strategy trading-agent:latest --regime bull_2024
+# Batch verification from file
+arc-verifier batch -f agents.txt --max-concurrent 20
+
+# Launch web dashboard
+arc-verifier export web
 ```
 
 ### Programmatic API
 
 ```python
-from arc_verifier import ParallelVerifier
-from arc_verifier.llm_judge import LLMJudge
-from arc_verifier.tee import TEEValidator
+from arc_verifier import api
 
-# Multi-agent verification
-verifier = ParallelVerifier(max_concurrent=5)
-results = await verifier.verify_batch(["agent1:latest", "agent2:latest"])
+# Simple verification
+result = await api.verify_agent("myagent:latest")
+print(f"Fort Score: {result.fort_score}/180")
+print(f"Status: {result.status}")
 
-# Trust-focused security analysis
-judge = LLMJudge()
-security_result = judge.evaluate_agent_security(image_data)
+# Batch verification with custom settings
+results = await api.verify_batch(
+    ["agent1:latest", "agent2:latest", "agent3:latest"],
+    max_concurrent=10,
+    enable_llm=True,
+    tier="high"
+)
 
-# TEE attestation validation
-tee_validator = TEEValidator()
-attestation_result = tee_validator.validate(agent_image)
+# Access individual components
+security_result = await api.scan_security("myagent:latest")
+performance_result = await api.test_performance("myagent:latest", duration=120)
+backtest_result = await api.backtest_strategy("trader:latest", start_date="2024-01-01")
 ```
 
 ## Configuration
@@ -235,22 +330,43 @@ Arc-Verifier integrates with various agentic protocol infrastructures:
 - **TEE-based Protocols**: Comprehensive attestation for Phala, Oasis, and other TEE networks
 - **General Agent Frameworks**: Protocol-agnostic verification for any containerized agent
 
-## Fort Score
+## Fort Score™
 
-Quantitative trustworthiness metric (0-180):
+The industry-standard trustworthiness metric for autonomous agents (0-180 points):
 
-| Component | Range | Evaluation |
-|-----------|-------|------------|
-| Security | ±30 | Vulnerability assessment, secure coding |
-| Intelligence | ±30 | AI analysis of logic and intent |
-| Performance | ±30 | Efficiency, reliability, error handling |
-| Strategy | ±90 | Backtesting effectiveness, risk management |
+### Scoring Components
 
-**Deployment Guidance:**
-- 150-180: Deploy with confidence
-- 120-149: Minor improvements recommended
-- 90-119: Significant issues require attention
-- 0-89: High risk, do not deploy
+| Component | Range | Evaluation Criteria |
+|-----------|-------|-------------------|
+| **Security** | -30 to +30 | • Vulnerability count and severity<br>• Secure coding practices<br>• Key management security<br>• TEE attestation validity |
+| **Performance** | -50 to +90 | • Throughput and latency<br>• Resource efficiency<br>• Error handling<br>• Scalability under load |
+| **Strategy** | -30 to +30 | • Backtesting performance<br>• Risk-adjusted returns<br>• Strategy consistency<br>• Market regime adaptability |
+| **Intelligence** | -30 to +30 | • LLM behavioral analysis<br>• Code quality assessment<br>• Malicious pattern detection<br>• Trust recommendations |
+
+### Deployment Guidelines
+
+| Score Range | Status | Recommendation |
+|------------|---------|----------------|
+| **150-180** | 🟢 Excellent | Deploy to production with confidence |
+| **120-149** | 🟡 Good | Deploy with monitoring, minor improvements recommended |
+| **90-119** | 🟠 Fair | Deploy to staging only, significant improvements needed |
+| **60-89** | 🔴 Poor | Do not deploy, major issues present |
+| **0-59** | ⛔ Critical | High risk, fundamental redesign required |
+
+### Export Options
+
+Export verification results in various formats:
+
+```bash
+# Export as HTML report
+arc-verifier export results --latest --format html
+
+# Export as JSON
+arc-verifier export results --latest --format json
+
+# View in web dashboard
+arc-verifier export web
+```
 
 ## Data Sources
 
@@ -264,16 +380,51 @@ Arc-Verifier automatically collects:
 | TEE Attestations | Hardware measurements, signatures | `tee/` |
 | Code Patterns | Logic analysis, behavioral signatures | `llm_judge/` |
 
+## Current Capabilities
+
+### 🔐 Security Validation
+- Container vulnerability scanning with Trivy
+- TEE attestation validation (simulation mode)
+- Dependency vulnerability assessment
+- Security scoring based on CVE severity
+
+### 📊 Strategy Analysis
+- Historical backtesting with real market data
+- Strategy type detection (arbitrage, market making, momentum)
+- Risk metrics calculation
+- Performance effectiveness scoring
+
+### ⚡ Parallel Verification
+- Concurrent agent verification using asyncio
+- Resource-aware semaphore management
+- Batch processing with progress tracking
+- Configurable concurrency limits
+
+### 🌐 Web Dashboard
+- Interactive verification history viewer
+- Fort Score visualization and trends
+- Component metrics breakdown
+- Real-time statistics dashboard
+
+### 🤖 LLM Analysis
+- Multi-provider support (Anthropic, OpenAI)
+- Security-focused code analysis
+- Behavioral pattern detection
+- Trust scoring and recommendations
+
 ## Installation
 
 ```bash
 # Requirements: Python 3.11+, Docker
 pip install arc-verifier
 
+# With all features
+pip install 'arc-verifier[llm,web]'
+
 # Development installation
-git clone https://github.com/near/arc-verifier
+git clone https://github.com/arc-computer/arc-verifier
 cd arc-verifier
-pip install -e ".[dev]"
+pip install -e ".[dev,llm,web]"
 ```
 
 ## Contributing

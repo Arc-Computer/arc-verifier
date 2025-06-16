@@ -1,0 +1,26 @@
+# Include package data
+include README.md
+include LICENSE
+include CONTRIBUTING.md
+include requirements.txt
+
+# Include web UI assets
+recursive-include arc_verifier/web/templates *.html
+recursive-include arc_verifier/web/static *.css *.js
+
+# Include type information
+include arc_verifier/py.typed
+
+# Exclude development and temporary files
+exclude .gitignore
+exclude .github
+exclude .vscode
+exclude *.pyc
+exclude __pycache__
+recursive-exclude tests *
+recursive-exclude internal_docs *
+recursive-exclude temp_issues *
+recursive-exclude docs/internal *
+recursive-exclude * *.pyc
+recursive-exclude * __pycache__
+recursive-exclude * .DS_Store

@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Verification Details - Arc-Verifier{% endblock %}
+
+{% block content %}
+<div x-data="verificationDetail()" x-init="init()">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900" x-text="verification.image">Loading...</h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    Verification ID: <span x-text="verification.verification_id" class="font-mono"></span>
+                </p>
+                <p class="text-sm text-gray-500">
+                    <span x-text="formatDate(verification.timestamp)"></span> • 
+                    <span x-text="verification.tier + ' tier'"></span> • 
+                    <span x-text="verification.processing_time + 's'"></span>
+                </p>
+            </div>
+            <div class="text-right">
+                <div class="fort-score-badge"
+                     :class="{
+                         'fort-score-high': verification.fort_score >= 150,
+                         'fort-score-medium': verification.fort_score >= 120 && verification.fort_score < 150,
+                         'fort-score-low': verification.fort_score < 120
+                     }">
+                    <span x-text="verification.fort_score"></span>/180
+                </div>
+                <span class="px-3 py-1 text-sm font-medium rounded-full text-white mt-2 inline-block"
+                      :class="{
+                          'status-passed': verification.status === 'PASSED' || verification.status === 'PASS',
+                          'status-warning': verification.status === 'WARNING',
+                          'status-failed': verification.status === 'FAILED'
+                      }"
+                      x-text="verification.status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Component Scores -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase">Security</h3>
+            <p class="mt-2 text-2xl font-bold text-gray-900">
+                <span x-text="verification.security.security_score || 0"></span>
+                <span class="text-sm text-gray-500">/30</span>
+            </p>
+            <p class="text-xs text-gray-500 mt-1">
+                <span x-text="countVulnerabilities(verification.security.vulnerabilities)"></span> vulnerabilities
+            </p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-4 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase">Performance</h3>
+            <p class="mt-2 text-2xl font-bold text-gray-900">
+                <span x-text="verification.performance.performance_score || 0"></span>
+                <span class="text-sm text-gray-500">/90</span>
+            </p>
+            <p class="text-xs text-gray-500 mt-1">
+                <span x-text="(verification.performance.throughput || 0) + ' TPS'"></span>
+            </p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-4 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase">Strategy</h3>
+            <p class="mt-2 text-2xl font-bold text-gray-900">
+                <span x-text="verification.strategy.strategy_effectiveness || 0"></span>
+                <span class="text-sm text-gray-500">/30</span>
+            </p>
+            <p class="text-xs text-gray-500 mt-1">
+                <span x-text="verification.strategy.strategy_type || 'unknown'"></span>
+            </p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-4 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase">Trust</h3>
+            <p class="mt-2 text-2xl font-bold text-gray-900">
+                <span x-text="verification.llm_analysis.trust_score || 0"></span>
+                <span class="text-sm text-gray-500">/30</span>
+            </p>
+            <p class="text-xs text-gray-500 mt-1">
+                <span x-text="verification.tee.trust_level || 'untrusted'"></span>
+            </p>
+        </div>
+    </div>
+    
+    <!-- Warnings and Recommendations -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6" x-show="verification.warnings.length > 0 || verification.recommendations.length > 0">
+        <div class="bg-yellow-50 rounded-lg p-6" x-show="verification.warnings.length > 0">
+            <h3 class="text-lg font-medium text-yellow-900 mb-3">Warnings</h3>
+            <ul class="space-y-2">
+                <template x-for="warning in verification.warnings">
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-yellow-800" x-text="warning"></span>
+                    </li>
+                </template>
+            </ul>
+        </div>
+        
+        <div class="bg-green-50 rounded-lg p-6" x-show="verification.recommendations.length > 0">
+            <h3 class="text-lg font-medium text-green-900 mb-3">Recommendations</h3>
+            <ul class="space-y-2">
+                <template x-for="recommendation in verification.recommendations">
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-green-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-green-800" x-text="recommendation"></span>
+                    </li>
+                </template>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Detailed Results Tabs -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="border-b">
+            <nav class="flex -mb-px">
+                <button @click="activeTab = 'security'" 
+                        :class="{'border-indigo-500 text-indigo-600': activeTab === 'security', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'security'}"
+                        class="py-4 px-6 border-b-2 font-medium text-sm">
+                    Security
+                </button>
+                <button @click="activeTab = 'performance'" 
+                        :class="{'border-indigo-500 text-indigo-600': activeTab === 'performance', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'performance'}"
+                        class="py-4 px-6 border-b-2 font-medium text-sm">
+                    Performance
+                </button>
+                <button @click="activeTab = 'backtest'" 
+                        :class="{'border-indigo-500 text-indigo-600': activeTab === 'backtest', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'backtest'}"
+                        class="py-4 px-6 border-b-2 font-medium text-sm">
+                    Backtest
+                </button>
+                <button @click="activeTab = 'strategy'" 
+                        :class="{'border-indigo-500 text-indigo-600': activeTab === 'strategy', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'strategy'}"
+                        class="py-4 px-6 border-b-2 font-medium text-sm">
+                    Strategy
+                </button>
+                <button @click="activeTab = 'tee'" 
+                        :class="{'border-indigo-500 text-indigo-600': activeTab === 'tee', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'tee'}"
+                        class="py-4 px-6 border-b-2 font-medium text-sm">
+                    TEE
+                </button>
+                <button @click="activeTab = 'llm'" 
+                        :class="{'border-indigo-500 text-indigo-600': activeTab === 'llm', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'llm'}"
+                        class="py-4 px-6 border-b-2 font-medium text-sm">
+                    LLM Analysis
+                </button>
+            </nav>
+        </div>
+        
+        <div class="p-6">
+            <!-- Security Tab -->
+            <div x-show="activeTab === 'security'">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Security Scan Results</h3>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Image Tag</p>
+                            <p class="font-medium" x-text="verification.security.image_tag || 'N/A'"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Base Image</p>
+                            <p class="font-medium" x-text="verification.security.base_image || 'N/A'"></p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-2">Vulnerabilities by Severity</h4>
+                        <div class="space-y-2" x-show="verification.security.vulnerabilities">
+                            <template x-for="severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']">
+                                <div class="flex items-center justify-between">
+                                    <span :class="'vulnerability-' + severity.toLowerCase()" x-text="severity"></span>
+                                    <span class="font-medium" x-text="countVulnerabilitiesBySeverity(verification.security.vulnerabilities, severity)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance Tab -->
+            <div x-show="activeTab === 'performance'">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Performance Benchmark Results</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Throughput</p>
+                        <p class="font-medium" x-text="(verification.performance.throughput || 0) + ' TPS'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Avg Latency</p>
+                        <p class="font-medium" x-text="(verification.performance.avg_latency_ms || 0) + ' ms'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">P95 Latency</p>
+                        <p class="font-medium" x-text="(verification.performance.p95_latency_ms || 0) + ' ms'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Error Rate</p>
+                        <p class="font-medium" x-text="(verification.performance.error_rate || 0) + '%'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">CPU Usage</p>
+                        <p class="font-medium" x-text="(verification.performance.cpu_usage_percent || 0) + '%'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Memory Usage</p>
+                        <p class="font-medium" x-text="(verification.performance.memory_usage_mb || 0) + ' MB'"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Backtest Tab -->
+            <div x-show="activeTab === 'backtest'">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Historical Backtest Results</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Total Return</p>
+                        <p class="font-medium" x-text="(verification.backtest.total_return || 0) + '%'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Sharpe Ratio</p>
+                        <p class="font-medium" x-text="verification.backtest.sharpe_ratio || 0"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Max Drawdown</p>
+                        <p class="font-medium" x-text="(verification.backtest.max_drawdown || 0) + '%'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Win Rate</p>
+                        <p class="font-medium" x-text="(verification.backtest.win_rate || 0) + '%'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Total Trades</p>
+                        <p class="font-medium" x-text="verification.backtest.total_trades || 0"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Avg Trade</p>
+                        <p class="font-medium" x-text="(verification.backtest.avg_trade || 0) + '%'"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Strategy Tab -->
+            <div x-show="activeTab === 'strategy'">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Strategy Analysis</h3>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Strategy Type</p>
+                        <p class="font-medium" x-text="verification.strategy.strategy_type || 'Unknown'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Effectiveness Score</p>
+                        <p class="font-medium" x-text="(verification.strategy.strategy_effectiveness || 0) + '/30'"></p>
+                    </div>
+                    <div x-show="verification.strategy.risk_metrics">
+                        <h4 class="font-medium text-gray-900 mb-2">Risk Metrics</h4>
+                        <pre class="bg-gray-50 p-3 rounded text-sm" x-text="JSON.stringify(verification.strategy.risk_metrics, null, 2)"></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TEE Tab -->
+            <div x-show="activeTab === 'tee'">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">TEE Attestation</h3>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Platform</p>
+                            <p class="font-medium" x-text="verification.tee.platform || 'N/A'"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Trust Level</p>
+                            <p class="font-medium uppercase" x-text="verification.tee.trust_level || 'UNTRUSTED'"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Attestation Status</p>
+                        <p class="font-medium" x-text="verification.tee.status || 'Invalid'"></p>
+                    </div>
+                    <div x-show="verification.tee.measurements">
+                        <h4 class="font-medium text-gray-900 mb-2">Measurements</h4>
+                        <pre class="bg-gray-50 p-3 rounded text-sm font-mono" x-text="JSON.stringify(verification.tee.measurements, null, 2)"></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- LLM Analysis Tab -->
+            <div x-show="activeTab === 'llm'">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">LLM Behavioral Analysis</h3>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Trust Score</p>
+                        <p class="font-medium" x-text="(verification.llm_analysis.trust_score || 0) + '/30'"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Behavior Summary</p>
+                        <p class="text-gray-700" x-text="verification.llm_analysis.behavior_summary || 'No analysis available'"></p>
+                    </div>
+                    <div x-show="verification.llm_analysis.risk_factors">
+                        <h4 class="font-medium text-gray-900 mb-2">Risk Factors</h4>
+                        <ul class="list-disc list-inside space-y-1">
+                            <template x-for="risk in (verification.llm_analysis.risk_factors || [])">
+                                <li class="text-sm text-gray-700" x-text="risk"></li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Export Actions -->
+    <div class="mt-6 flex justify-end space-x-4">
+        <button @click="exportJSON()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+            Export JSON
+        </button>
+        <button @click="exportHTML()" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+            Export Report
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function verificationDetail() {
+    return {
+        verification: {
+            image: '',
+            verification_id: '',
+            fort_score: 0,
+            status: '',
+            security: {},
+            performance: {},
+            backtest: {},
+            strategy: {},
+            tee: {},
+            llm_analysis: {},
+            warnings: [],
+            recommendations: []
+        },
+        activeTab: 'security',
+        
+        async init() {
+            const verificationId = window.location.pathname.split('/').pop();
+            await this.loadVerification(verificationId);
+        },
+        
+        async loadVerification(id) {
+            try {
+                const response = await fetch(`/api/verification/${id}`);
+                this.verification = await response.json();
+            } catch (error) {
+                console.error('Failed to load verification:', error);
+            }
+        },
+        
+        countVulnerabilities(vulnerabilities) {
+            if (!vulnerabilities) return 0;
+            if (Array.isArray(vulnerabilities)) return vulnerabilities.length;
+            if (typeof vulnerabilities === 'object') {
+                return Object.values(vulnerabilities).reduce((sum, count) => sum + count, 0);
+            }
+            return 0;
+        },
+        
+        countVulnerabilitiesBySeverity(vulnerabilities, severity) {
+            if (!vulnerabilities) return 0;
+            if (Array.isArray(vulnerabilities)) {
+                return vulnerabilities.filter(v => v.severity === severity).length;
+            }
+            if (typeof vulnerabilities === 'object') {
+                return vulnerabilities[severity] || 0;
+            }
+            return 0;
+        },
+        
+        formatDate(timestamp) {
+            return new Date(timestamp).toLocaleString();
+        },
+        
+        async exportJSON() {
+            const blob = new Blob([JSON.stringify(this.verification, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `verification_${this.verification.verification_id}.json`;
+            a.click();
+        },
+        
+        async exportHTML() {
+            // This would call the export API endpoint
+            window.location.href = `/api/export/${this.verification.verification_id}?format=html`;
+        }
+    }
+}
+</script>
+{% endblock %}

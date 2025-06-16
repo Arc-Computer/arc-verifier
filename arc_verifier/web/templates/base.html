@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Arc-Verifier Dashboard{% endblock %}</title>
+    
+    <!-- Modern CSS Framework -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- Alpine.js for reactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Custom styles -->
+    <style>
+        .fort-score-badge {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+        .fort-score-high { color: #10b981; }
+        .fort-score-medium { color: #f59e0b; }
+        .fort-score-low { color: #ef4444; }
+        
+        .metric-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-passed { background-color: #10b981; }
+        .status-warning { background-color: #f59e0b; }
+        .status-failed { background-color: #ef4444; }
+        
+        .vulnerability-critical { color: #991b1b; font-weight: bold; }
+        .vulnerability-high { color: #dc2626; }
+        .vulnerability-medium { color: #f59e0b; }
+        .vulnerability-low { color: #6b7280; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900">Arc-Verifier</h1>
+                    <span class="ml-2 text-sm text-gray-500">Verification Dashboard</span>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="/" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                    <a href="/verifications" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Verifications</a>
+                    <a href="/agents" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Agents</a>
+                    <a href="/metrics" class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Metrics</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-12">
+        <div class="container mx-auto px-4 py-6">
+            <div class="text-center text-sm text-gray-500">
+                Arc-Verifier - Verification and evaluation framework for agentic protocols
+            </div>
+        </div>
+    </footer>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

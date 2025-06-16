@@ -22,7 +22,7 @@ def test_cli_version():
     runner = CliRunner()
     result = runner.invoke(cli, ['--version'])
     assert result.exit_code == 0
-    assert '0.1.0' in result.output
+    assert '1.0.0b1' in result.output
 
 
 def test_verify_command_help():
@@ -30,7 +30,7 @@ def test_verify_command_help():
     runner = CliRunner()
     result = runner.invoke(cli, ['verify', '--help'])
     assert result.exit_code == 0
-    assert 'Verify a Docker image' in result.output
+    assert 'Comprehensive agent verification' in result.output
 
 
 def test_scan_command_help():
@@ -54,8 +54,8 @@ def test_verify_basic():
     runner = CliRunner()
     result = runner.invoke(cli, ['verify', 'nginx:latest'])
     assert result.exit_code == 0
-    assert 'Verifying image: nginx:latest' in result.output
-    assert 'Agent Fort Score' in result.output
+    assert 'Core Verification' in result.output
+    assert 'Fort Score' in result.output
 
 
 def test_scan_basic():

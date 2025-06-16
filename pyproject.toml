@@ -4,27 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["arc_verifier*"]
-exclude = ["internal_docs*"]
+exclude = ["internal_docs*", "temp_issues*", "tests*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "arc_verifier.__version__.__version__"}
 
 [project]
 name = "arc-verifier"
-version = "0.1.0"
-description = "Lightweight agentic protocol verification tool for Agent Forts"
+dynamic = ["version"]
+description = "Verification and evaluation framework for autonomous agents across agentic protocols"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
+license = {text = "MIT"}
 authors = [
-    {name = "NEAR Protocol", email = "dev@near.org"},
+    {name = "Arc-Verifier Contributors"},
 ]
 keywords = ["near", "agents", "verification", "tee", "docker", "security"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Testing",
     "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
 ]
 
 dependencies = [
@@ -41,7 +47,15 @@ dependencies = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
     "requests>=2.31.0",
+    "aiofiles>=23.0.0",
+    "python-dateutil>=2.8.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/arc-computer/arc-verifier"
+Documentation = "https://github.com/arc-computer/arc-verifier/tree/main/docs"
+Repository = "https://github.com/arc-computer/arc-verifier"
+Issues = "https://github.com/arc-computer/arc-verifier/issues"
 
 [project.scripts]
 arc-verifier = "arc_verifier.cli:cli"
@@ -50,6 +64,7 @@ arc-verifier = "arc_verifier.cli:cli"
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-timeout>=2.1.0",
     "black>=23.7.0",
     "mypy>=1.4.0",
     "ruff>=0.1.0",
@@ -83,3 +98,27 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
 ]
+
+[tool.pytest.ini_options]
+# Extend timeouts for integration tests
+timeout = 600  # 10 minutes default timeout
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+    "--timeout=600",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Asyncio configuration
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

@@ -20,8 +20,8 @@ class TEEValidator:
     production-ready TEE validation system.
     """
     
-    def __init__(self):
-        self.console = Console()
+    def __init__(self, console=None):
+        self.console = console or Console()
         self.phala_validator = PhalaCloudValidator(console=self.console)
         self.code_registry = CodeHashRegistry()
         self.attestation_verifier = AttestationVerifier()

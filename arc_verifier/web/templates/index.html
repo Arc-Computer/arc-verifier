@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="dashboard()" x-init="init()">
+    <!-- Header Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Verifications</h3>
+            <p class="mt-2 text-3xl font-bold text-gray-900" x-text="stats.total_verifications">0</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Average Fort Score</h3>
+            <p class="mt-2 text-3xl font-bold" 
+               :class="{
+                   'fort-score-high': stats.average_fort_score >= 150,
+                   'fort-score-medium': stats.average_fort_score >= 120 && stats.average_fort_score < 150,
+                   'fort-score-low': stats.average_fort_score < 120
+               }"
+               x-text="Math.round(stats.average_fort_score) + '/180'">0/180</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Pass Rate</h3>
+            <p class="mt-2 text-3xl font-bold text-gray-900" x-text="Math.round(stats.pass_rate) + '%'">0%</p>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 metric-card">
+            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Active Agents</h3>
+            <p class="mt-2 text-3xl font-bold text-gray-900" x-text="agents.length">0</p>
+        </div>
+    </div>
+    
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Fort Score Trend -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Fort Score Trend</h3>
+            <canvas id="fortScoreTrend" width="400" height="200"></canvas>
+        </div>
+        
+        <!-- Status Distribution -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Verification Status Distribution</h3>
+            <canvas id="statusDistribution" width="400" height="200"></canvas>
+        </div>
+    </div>
+    
+    <!-- Component Metrics -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Component Metrics Overview</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="text-center">
+                <h4 class="text-sm font-medium text-gray-500 uppercase">Security</h4>
+                <p class="mt-2 text-2xl font-bold text-gray-900" x-text="Math.round(metrics.security.average_score)">0</p>
+                <p class="text-sm text-gray-500">avg score</p>
+            </div>
+            
+            <div class="text-center">
+                <h4 class="text-sm font-medium text-gray-500 uppercase">Performance</h4>
+                <p class="mt-2 text-2xl font-bold text-gray-900" x-text="Math.round(metrics.performance.average_score)">0</p>
+                <p class="text-sm text-gray-500">avg score</p>
+            </div>
+            
+            <div class="text-center">
+                <h4 class="text-sm font-medium text-gray-500 uppercase">Strategy</h4>
+                <p class="mt-2 text-2xl font-bold text-gray-900" x-text="Math.round(metrics.strategy.average_score)">0</p>
+                <p class="text-sm text-gray-500">avg score</p>
+            </div>
+            
+            <div class="text-center">
+                <h4 class="text-sm font-medium text-gray-500 uppercase">Trust</h4>
+                <p class="mt-2 text-2xl font-bold text-gray-900" x-text="Math.round(metrics.trust.average_score)">0</p>
+                <p class="text-sm text-gray-500">avg score</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Verifications -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b">
+            <h3 class="text-lg font-medium text-gray-900">Recent Verifications</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fort Score</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tier</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="verification in recentVerifications" :key="verification.verification_id">
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="verification.image"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="font-bold"
+                                      :class="{
+                                          'fort-score-high': verification.fort_score >= 150,
+                                          'fort-score-medium': verification.fort_score >= 120 && verification.fort_score < 150,
+                                          'fort-score-low': verification.fort_score < 120
+                                      }"
+                                      x-text="verification.fort_score + '/180'"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full text-white"
+                                      :class="{
+                                          'status-passed': verification.status === 'PASSED' || verification.status === 'PASS',
+                                          'status-warning': verification.status === 'WARNING',
+                                          'status-failed': verification.status === 'FAILED'
+                                      }"
+                                      x-text="verification.status"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="verification.tier"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDate(verification.timestamp)"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a :href="'/verification/' + verification.verification_id" 
+                                   class="text-indigo-600 hover:text-indigo-900">View Details</a>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function dashboard() {
+    return {
+        stats: {
+            total_verifications: 0,
+            average_fort_score: 0,
+            pass_rate: 0,
+            by_status: {},
+            by_tier: {},
+            recent_trends: []
+        },
+        metrics: {
+            security: { average_score: 0 },
+            performance: { average_score: 0 },
+            strategy: { average_score: 0 },
+            trust: { average_score: 0 }
+        },
+        agents: [],
+        recentVerifications: [],
+        charts: {},
+        
+        async init() {
+            // Load all data
+            await Promise.all([
+                this.loadStatistics(),
+                this.loadMetrics(),
+                this.loadAgents(),
+                this.loadRecentVerifications()
+            ]);
+            
+            // Initialize charts
+            this.initCharts();
+        },
+        
+        async loadStatistics() {
+            const response = await fetch('/api/statistics');
+            this.stats = await response.json();
+        },
+        
+        async loadMetrics() {
+            const response = await fetch('/api/metrics');
+            this.metrics = await response.json();
+        },
+        
+        async loadAgents() {
+            const response = await fetch('/api/agents');
+            this.agents = await response.json();
+        },
+        
+        async loadRecentVerifications() {
+            const response = await fetch('/api/verifications?per_page=10');
+            const data = await response.json();
+            this.recentVerifications = data.results;
+        },
+        
+        initCharts() {
+            // Fort Score Trend Chart
+            const trendCtx = document.getElementById('fortScoreTrend').getContext('2d');
+            this.charts.trend = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: this.stats.recent_trends.map(t => this.formatDate(t.timestamp)),
+                    datasets: [{
+                        label: 'Fort Score',
+                        data: this.stats.recent_trends.map(t => t.fort_score),
+                        borderColor: 'rgb(99, 102, 241)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 180
+                        }
+                    }
+                }
+            });
+            
+            // Status Distribution Chart
+            const statusCtx = document.getElementById('statusDistribution').getContext('2d');
+            this.charts.status = new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(this.stats.by_status),
+                    datasets: [{
+                        data: Object.values(this.stats.by_status),
+                        backgroundColor: [
+                            'rgb(16, 185, 129)',  // Passed
+                            'rgb(245, 158, 11)',  // Warning
+                            'rgb(239, 68, 68)'    // Failed
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        },
+        
+        formatDate(timestamp) {
+            return new Date(timestamp).toLocaleString();
+        }
+    }
+}
+</script>
+{% endblock %}

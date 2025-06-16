@@ -1,7 +1,7 @@
 """Tests for the Docker scanner module."""
 
 import pytest
-from arc_verifier.scanner import DockerScanner
+from arc_verifier.security.scanner import DockerScanner
 
 
 def test_scanner_init():

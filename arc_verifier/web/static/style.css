@@ -1,0 +1,109 @@
+/* Arc-Verifier Custom Styles */
+
+/* Fort Score Animation */
+.fort-score-badge {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading skeleton animation */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Chart container responsive sizing */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Smooth transitions for interactive elements */
+.metric-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Tab transitions */
+button[role="tab"] {
+    transition: all 0.2s ease;
+}
+
+/* Status badge pulse animation for live updates */
+.status-badge.live {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+
+/* Vulnerability severity indicators */
+.vulnerability-critical::before {
+    content: "⚠️";
+    margin-right: 0.5rem;
+}
+
+.vulnerability-high::before {
+    content: "🔴";
+    margin-right: 0.5rem;
+}
+
+.vulnerability-medium::before {
+    content: "🟡";
+    margin-right: 0.5rem;
+}
+
+.vulnerability-low::before {
+    content: "🔵";
+    margin-right: 0.5rem;
+}
+
+/* Grid layout for metrics dashboard */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-primary: #1a1a1a;
+        --bg-secondary: #2d2d2d;
+        --text-primary: #ffffff;
+        --text-secondary: #a0a0a0;
+    }
+}
+
+/* Print styles for reports */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .page-break {
+        page-break-after: always;
+    }
+    
+    body {
+        font-size: 12pt;
+    }
+}

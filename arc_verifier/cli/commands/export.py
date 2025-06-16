@@ -149,14 +149,16 @@ def web(port, host, debug):
         app.run(host=host, port=port, debug=debug)
         
     except ImportError:
-        console.print("[red]Web UI module not found[/red]")
-        console.print("[yellow]Installing web dependencies...[/yellow]")
-        
-        # Provide installation instructions
-        console.print("\nTo enable the web UI, install additional dependencies:")
-        console.print("  pip install 'arc-verifier[web]'")
-        console.print("\nOr manually install:")
-        console.print("  pip install flask flask-cors")
+        console.print("[red]Web UI dependencies not installed[/red]")
+        console.print("\n[yellow]To enable the web UI, install the required dependencies:[/yellow]")
+        console.print("\n  pip install flask flask-cors")
+        console.print("\nFor production deployment, also install:")
+        console.print("  pip install gunicorn flask-compress flask-caching")
+        console.print("\n[dim]The web UI provides a comprehensive dashboard for viewing:[/dim]")
+        console.print("[dim]  • Verification history and trends[/dim]")
+        console.print("[dim]  • Detailed metrics across all components[/dim]")
+        console.print("[dim]  • Agent performance comparisons[/dim]")
+        console.print("[dim]  • Interactive charts and visualizations[/dim]")
         
     except Exception as e:
         console.print(f"[red]Failed to start web server: {e}[/red]")

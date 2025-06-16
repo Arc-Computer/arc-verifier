@@ -9,7 +9,7 @@ import zipfile
 import io
 import urllib.error
 
-from arc_verifier.data_fetcher import BinanceDataFetcher, MarketDataManager
+from arc_verifier.data.fetcher import BinanceDataFetcher, MarketDataManager
 
 
 class TestBinanceDataFetcher:
@@ -68,7 +68,7 @@ class TestBinanceDataFetcher:
         assert len(df) == 1
         assert df.iloc[0]['open'] == 42000.0
         assert df.iloc[0]['close'] == 42300.0
-        assert isinstance(df['timestamp'].iloc[0], pd.Timestamp)
+        assert isinstance(df.index[0], pd.Timestamp)
     
     def test_load_klines_from_zip(self, fetcher, mock_kline_data, tmp_path):
         """Test loading klines from zip file."""
@@ -80,13 +80,14 @@ class TestBinanceDataFetcher:
         # Load data
         df = fetcher._load_klines_from_zip(zip_path)
         
-        # Verify columns and data
+        # Verify columns and data (timestamp becomes index, so not in columns)
         expected_columns = [
-            'timestamp', 'open', 'high', 'low', 'close', 'volume',
+            'open', 'high', 'low', 'close', 'volume',
             'close_time', 'quote_volume', 'trades', 
             'taker_buy_base', 'taker_buy_quote', 'ignore'
         ]
         assert list(df.columns) == expected_columns
+        assert df.index.name == 'timestamp'
         assert len(df) == 2
         assert df['open'].dtype == float
         assert df['close'].dtype == float

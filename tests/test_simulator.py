@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch, MagicMock
 
-from arc_verifier.simulator import (
+from arc_verifier.utils.simulator import (
     AgentSimulator, SimulationScenario, ScenarioStep,
     SimulationResult, MockAPIProvider, BehaviorMonitor,
     ScenarioLibrary

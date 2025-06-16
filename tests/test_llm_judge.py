@@ -1,26 +1,33 @@
-"""Tests for LLM Judge functionality."""
+"""Tests for the new LLM Judge architecture."""
 
 import pytest
-import json
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
-from arc_verifier.llm_judge import (
+from arc_verifier.analysis.llm_judge import (
     LLMJudge, 
-    LLMJudgeResult, 
+    LLMProvider,
     AgentIntentClassification,
     CodeQualityAnalysis,
     RiskAssessment,
-    LLMProvider
+    KeySecurityResult,
+    TransactionControlResult,
+    DeceptionDetectionResult,
+    CapitalRiskResult,
+    TrustFocusedResult,
+    LLMJudgeResult
 )
 
 
-class TestLLMJudge:
-    """Test suite for LLM Judge functionality."""
+class TestLLMJudgeNewArchitecture:
+    """Test suite for the new LLM Judge architecture."""
     
     def setup_method(self):
         """Set up test fixtures."""
-        self.judge = LLMJudge(primary_provider=LLMProvider.ANTHROPIC, enable_ensemble=False)
+        self.judge = LLMJudge(
+            primary_provider=LLMProvider.ANTHROPIC, 
+            enable_ensemble=False
+        )
         
         self.sample_image_data = {
             "image_tag": "shade/arbitrage-agent:latest",
@@ -43,7 +50,7 @@ class TestLLMJudge:
         }
     
     def test_llm_judge_initialization(self):
-        """Test LLM Judge initialization."""
+        """Test LLM Judge initialization with new architecture."""
         judge = LLMJudge()
         assert judge.primary_provider == LLMProvider.ANTHROPIC
         assert judge.fallback_provider == LLMProvider.OPENAI
@@ -59,308 +66,227 @@ class TestLLMJudge:
         assert judge_custom.fallback_provider is None
         assert judge_custom.enable_ensemble is False
     
-    def test_prepare_evaluation_context(self):
-        """Test evaluation context preparation."""
-        context = self.judge._prepare_evaluation_context(
-            self.sample_image_data, 
-            None, 
-            self.sample_market_context
-        )
-        
-        assert "image_info" in context
-        assert context["image_info"]["tag"] == "shade/arbitrage-agent:latest"
-        assert context["image_info"]["shade_agent_detected"] is True
-        assert context["image_info"]["vulnerabilities"]["MEDIUM"] == 1
-        assert context["image_info"]["vulnerabilities"]["LOW"] == 1
-        assert context["image_info"]["vulnerabilities"]["HIGH"] == 0
-        assert context["image_info"]["vulnerabilities"]["CRITICAL"] == 0
-        
-        assert "deployment_context" in context
-        assert context["deployment_context"]["market_conditions"]["tier"] == "high"
-        
-        assert "agent_patterns" in context
-        assert "dependencies" in context["agent_patterns"]
+    def test_llm_judge_has_required_components(self):
+        """Test that LLM Judge has all required analyzers."""
+        assert hasattr(self.judge, 'key_security_analyzer')
+        assert hasattr(self.judge, 'transaction_control_analyzer')
+        assert hasattr(self.judge, 'deception_detector')
+        assert hasattr(self.judge, 'capital_risk_analyzer')
+        assert hasattr(self.judge, 'trust_score_calculator')
+        assert hasattr(self.judge, 'ensemble_evaluator')
     
-    def test_extract_agent_patterns(self):
-        """Test agent pattern extraction from layers."""
-        layers = [
-            {"command": "pip install web3 pandas numpy"},
-            {"command": "npm install @shade/trading-bot"},
-            {"command": "export SHADE_API_KEY=secret"},
-            {"command": "run trading_agent.py"},
-            {"command": "copy config.yaml /app/"}
-        ]
+    @patch('arc_verifier.analysis.llm_judge.core.prepare_evaluation_context')
+    def test_evaluate_agent_security_success(self, mock_prepare_context):
+        """Test successful trust-focused security evaluation."""
+        # Mock evaluation context
+        mock_context = {"image_info": {"tag": "test:latest"}}
+        mock_prepare_context.return_value = mock_context
         
-        patterns = self.judge._extract_agent_patterns(layers)
-        
-        assert len(patterns["dependencies"]) == 2  # pip and npm commands
-        assert len(patterns["configurations"]) == 2  # export and config commands
-        assert len(patterns["commands"]) == 1       # run command
-        
-        # Check specific patterns
-        assert any("pip install" in dep for dep in patterns["dependencies"])
-        assert any("npm install" in dep for dep in patterns["dependencies"])
-        assert any("export" in cfg for cfg in patterns["configurations"])
-        assert any("run" in cmd for cmd in patterns["commands"])
+        # Mock analyzer results
+        with patch.object(self.judge.key_security_analyzer, 'analyze') as mock_key_sec, \
+             patch.object(self.judge.transaction_control_analyzer, 'analyze') as mock_tx_ctrl, \
+             patch.object(self.judge.deception_detector, 'analyze') as mock_deception, \
+             patch.object(self.judge.capital_risk_analyzer, 'analyze') as mock_capital, \
+             patch.object(self.judge.trust_score_calculator, 'calculate_trust_assessment') as mock_trust:
+            
+            # Configure mock returns
+            mock_key_sec.return_value = KeySecurityResult(
+                has_plaintext_keys=False,
+                key_generation_secure=True,
+                key_storage_encrypted=True,
+                key_rotation_implemented=True,
+                key_exposure_risk="low",
+                security_concerns=[],
+                code_references=[]
+            )
+            
+            mock_tx_ctrl.return_value = TransactionControlResult(
+                has_spending_limits=True,
+                has_approval_mechanisms=True,
+                emergency_stop_present=True,
+                cross_chain_controls=True,
+                transaction_monitoring=True,
+                control_strength="strong",
+                control_gaps=[]
+            )
+            
+            mock_deception.return_value = DeceptionDetectionResult(
+                backdoor_detected=False,
+                time_bomb_detected=False,
+                obfuscated_code_found=False,
+                data_exfiltration_risk=False,
+                environment_specific_behavior=False,
+                deception_indicators=[],
+                risk_level="low"
+            )
+            
+            mock_capital.return_value = CapitalRiskResult(
+                max_loss_bounded=True,
+                position_size_controls=True,
+                stop_loss_implemented=True,
+                leverage_controls=True,
+                flash_loan_usage=False,
+                risk_controls_adequate=True,
+                estimated_max_loss="bounded"
+            )
+            
+            mock_trust_result = TrustFocusedResult(
+                can_trust_with_capital=True,
+                trust_score=0.85,
+                key_security=mock_key_sec.return_value,
+                transaction_controls=mock_tx_ctrl.return_value,
+                deception_analysis=mock_deception.return_value,
+                capital_risk=mock_capital.return_value,
+                critical_vulnerabilities=[],
+                security_recommendations=["Continue monitoring"],
+                confidence_level=0.9,
+                reasoning="Strong security controls with no major risks detected"
+            )
+            mock_trust.return_value = mock_trust_result
+            
+            # Run the evaluation
+            result = self.judge.evaluate_agent_security(
+                self.sample_image_data,
+                market_context=self.sample_market_context
+            )
+            
+            # Verify result
+            assert isinstance(result, TrustFocusedResult)
+            assert result.trust_score == 0.85
+            assert result.can_trust_with_capital == True
+            assert result.confidence_level == 0.9
+            
+            # Verify all analyzers were called
+            mock_key_sec.assert_called_once()
+            mock_tx_ctrl.assert_called_once()
+            mock_deception.assert_called_once()
+            mock_capital.assert_called_once()
+            mock_trust.assert_called_once()
     
-    def test_summarize_vulnerabilities(self):
-        """Test vulnerability summarization."""
-        vulnerabilities = [
-            {"severity": "CRITICAL", "cveId": "CVE-2023-0001"},
-            {"severity": "CRITICAL", "cveId": "CVE-2023-0002"},
-            {"severity": "HIGH", "cveId": "CVE-2023-0003"},
-            {"severity": "MEDIUM", "cveId": "CVE-2023-0004"},
-            {"severity": "LOW", "cveId": "CVE-2023-0005"},
-            {"severity": "LOW", "cveId": "CVE-2023-0006"}
-        ]
+    @patch('arc_verifier.analysis.llm_judge.core.prepare_evaluation_context')
+    def test_evaluate_agent_security_failure_fallback(self, mock_prepare_context):
+        """Test security evaluation with failure falls back gracefully."""
+        # Mock context preparation to raise exception
+        mock_prepare_context.side_effect = Exception("Context preparation failed")
         
-        summary = self.judge._summarize_vulnerabilities(vulnerabilities)
-        
-        assert summary["CRITICAL"] == 2
-        assert summary["HIGH"] == 1
-        assert summary["MEDIUM"] == 1
-        assert summary["LOW"] == 2
+        # Mock fallback trust assessment
+        with patch.object(self.judge.trust_score_calculator, 'generate_fallback_trust_assessment') as mock_fallback:
+            fallback_result = TrustFocusedResult(
+                can_trust_with_capital=False,
+                trust_score=0.2,
+                key_security=KeySecurityResult(
+                    has_plaintext_keys=True,
+                    key_generation_secure=False,
+                    key_storage_encrypted=False,
+                    key_rotation_implemented=False,
+                    key_exposure_risk="critical",
+                    security_concerns=["Unable to evaluate - system error"],
+                    code_references=[]
+                ),
+                transaction_controls=TransactionControlResult(
+                    has_spending_limits=False,
+                    has_approval_mechanisms=False,
+                    emergency_stop_present=False,
+                    cross_chain_controls=False,
+                    transaction_monitoring=False,
+                    control_strength="weak",
+                    control_gaps=["Unable to evaluate"]
+                ),
+                deception_analysis=DeceptionDetectionResult(
+                    backdoor_detected=False,
+                    time_bomb_detected=False,
+                    obfuscated_code_found=False,
+                    data_exfiltration_risk=True,
+                    environment_specific_behavior=False,
+                    deception_indicators=["Evaluation failed - assume risk"],
+                    risk_level="critical"
+                ),
+                capital_risk=CapitalRiskResult(
+                    max_loss_bounded=False,
+                    position_size_controls=False,
+                    stop_loss_implemented=False,
+                    leverage_controls=False,
+                    flash_loan_usage=True,
+                    risk_controls_adequate=False,
+                    estimated_max_loss="unlimited"
+                ),
+                critical_vulnerabilities=["System evaluation failure"],
+                security_recommendations=["Manual security review required"],
+                confidence_level=0.1,
+                reasoning="Evaluation failed - conservative fallback assessment"
+            )
+            mock_fallback.return_value = fallback_result
+            
+            result = self.judge.evaluate_agent_security(self.sample_image_data)
+            
+            # Should return conservative fallback assessment
+            assert isinstance(result, TrustFocusedResult)
+            assert result.trust_score == 0.2
+            assert result.can_trust_with_capital == False
+            assert result.confidence_level == 0.1
+            assert "Evaluation failed" in result.reasoning
+            
+            mock_fallback.assert_called_once()
     
-    def test_build_evaluation_prompt(self):
-        """Test evaluation prompt building."""
-        context = self.judge._prepare_evaluation_context(
-            self.sample_image_data, None, self.sample_market_context
-        )
+    @patch('arc_verifier.analysis.llm_judge.core.prepare_evaluation_context')
+    def test_evaluate_agent_comprehensive(self, mock_prepare_context):
+        """Test comprehensive agent evaluation (non-security focused)."""
+        # Mock evaluation context
+        mock_context = {"image_info": {"tag": "test:latest"}}
+        mock_prepare_context.return_value = mock_context
         
-        prompt = self.judge._build_evaluation_prompt(context)
-        
-        # Check that key elements are included
-        assert "shade/arbitrage-agent:latest" in prompt
-        assert "128.0 MB" in prompt  # Size formatting
-        assert "**Shade Agent Detected**: True" in prompt
-        assert "behavioral_flags" in prompt
-        assert "score_adjustments" in prompt
-        assert "intent_classification" in prompt
-    
-    def test_parse_llm_response_valid_json(self):
-        """Test parsing valid LLM response."""
-        mock_response = '''```json
-{
-  "intent_classification": {
-    "primary_strategy": "arbitrage",
-    "risk_profile": "moderate",
-    "complexity_score": 0.7,
-    "confidence": 0.85
-  },
-  "code_quality": {
-    "architecture_score": 0.8,
-    "error_handling_score": 0.7,
-    "security_practices_score": 0.9,
-    "maintainability_score": 0.75,
-    "test_coverage_score": 0.6,
-    "overall_score": 0.76,
-    "key_findings": ["Well-structured trading logic", "Good security practices"]
-  },
-  "risk_assessment": {
-    "volatility_sensitivity": 0.6,
-    "liquidity_requirements": "medium",
-    "systemic_risk_score": 0.3,
-    "market_impact_score": 0.4,
-    "operational_risk_score": 0.25,
-    "regulatory_risk_score": 0.2
-  },
-  "behavioral_flags": ["High-frequency trading patterns detected"],
-  "score_adjustments": {
-    "innovative_strategy": 5.0,
-    "risk_management": 8.0,
-    "code_architecture": 6.0,
-    "market_impact": -2.0
-  },
-  "confidence_level": 0.8,
-  "reasoning": "This appears to be a well-designed arbitrage agent with solid risk management practices."
-}
-```'''
-        
-        context = {"image_info": {"tag": "test"}}
-        result = self.judge._parse_llm_response(mock_response, context)
-        
-        assert isinstance(result, LLMJudgeResult)
-        assert result.intent_classification.primary_strategy == "arbitrage"
-        assert result.intent_classification.risk_profile == "moderate"
-        assert result.code_quality.overall_score == 0.76
-        assert result.risk_assessment.liquidity_requirements == "medium"
-        assert len(result.behavioral_flags) == 1
-        assert result.score_adjustments["innovative_strategy"] == 5.0
-        assert result.confidence_level == 0.8
-    
-    def test_parse_llm_response_invalid_json(self):
-        """Test parsing invalid LLM response falls back gracefully."""
-        invalid_response = "This is not valid JSON"
-        context = self.sample_image_data
-        
-        result = self.judge._parse_llm_response(invalid_response, context)
-        
-        # Should return fallback assessment
-        assert isinstance(result, LLMJudgeResult)
-        assert result.intent_classification.primary_strategy == "unknown"
-        assert result.intent_classification.risk_profile == "conservative"
-        assert result.confidence_level == 0.1
-        assert "LLM evaluation failed" in result.reasoning
-    
-    def test_generate_fallback_assessment(self):
-        """Test fallback assessment generation."""
-        context = {"image_info": {"tag": "test-agent"}}
-        result = self.judge._generate_fallback_assessment(context)
-        
-        assert isinstance(result, LLMJudgeResult)
-        assert result.intent_classification.primary_strategy == "unknown"
-        assert result.intent_classification.risk_profile == "conservative"
-        assert result.code_quality.overall_score == 0.5
-        assert result.risk_assessment.systemic_risk_score == 0.8  # Conservative
-        assert result.confidence_level == 0.1
-        assert "manual review" in result.reasoning.lower()
-    
-    def test_combine_evaluations(self):
-        """Test ensemble evaluation combination."""
-        # Create two mock results
-        primary = LLMJudgeResult(
-            intent_classification=AgentIntentClassification(
-                primary_strategy="arbitrage",
-                risk_profile="moderate",
-                complexity_score=0.7,
-                confidence=0.8
-            ),
-            code_quality=CodeQualityAnalysis(
-                architecture_score=0.8,
-                error_handling_score=0.7,
-                security_practices_score=0.9,
-                maintainability_score=0.75,
-                test_coverage_score=0.6,
-                overall_score=0.76,
-                key_findings=["Primary finding"]
-            ),
-            risk_assessment=RiskAssessment(
-                volatility_sensitivity=0.6,
-                liquidity_requirements="medium",
-                systemic_risk_score=0.3,
-                market_impact_score=0.4,
-                operational_risk_score=0.25,
-                regulatory_risk_score=0.2
-            ),
-            behavioral_flags=["Primary flag"],
-            score_adjustments={"innovation": 5.0, "risk": 3.0},
-            confidence_level=0.8,
-            reasoning="Primary reasoning",
-            timestamp=datetime.now()
-        )
-        
-        secondary = LLMJudgeResult(
-            intent_classification=AgentIntentClassification(
-                primary_strategy="market_making",
-                risk_profile="aggressive", 
-                complexity_score=0.9,
-                confidence=0.7
-            ),
-            code_quality=CodeQualityAnalysis(
-                architecture_score=0.6,
-                error_handling_score=0.8,
-                security_practices_score=0.7,
-                maintainability_score=0.65,
-                test_coverage_score=0.8,
-                overall_score=0.72,
-                key_findings=["Secondary finding"]
-            ),
-            risk_assessment=RiskAssessment(
-                volatility_sensitivity=0.8,
-                liquidity_requirements="high",
-                systemic_risk_score=0.5,
-                market_impact_score=0.6,
-                operational_risk_score=0.35,
-                regulatory_risk_score=0.4
-            ),
-            behavioral_flags=["Secondary flag"],
-            score_adjustments={"innovation": 3.0, "risk": 7.0},
-            confidence_level=0.7,
-            reasoning="Secondary reasoning",
-            timestamp=datetime.now()
-        )
-        
-        combined = self.judge._combine_evaluations(primary, secondary, 0.7, 0.3)
-        
-        # Test weighted averaging
-        assert combined.code_quality.architecture_score == pytest.approx(0.74, rel=1e-2)  # 0.7*0.8 + 0.3*0.6
-        assert combined.risk_assessment.volatility_sensitivity == pytest.approx(0.66, rel=1e-2)  # 0.7*0.6 + 0.3*0.8
-        assert combined.score_adjustments["innovation"] == pytest.approx(4.4, rel=1e-2)  # 0.7*5 + 0.3*3
-        assert combined.confidence_level == pytest.approx(0.77, rel=1e-2)  # 0.7*0.8 + 0.3*0.7
-        
-        # Test set combinations
-        assert len(combined.behavioral_flags) == 2
-        assert "Primary flag" in combined.behavioral_flags
-        assert "Secondary flag" in combined.behavioral_flags
-        
-        # Test text combinations
-        assert "Primary finding" in combined.code_quality.key_findings
-        assert "Secondary finding" in combined.code_quality.key_findings
-        assert "Ensemble evaluation" in combined.reasoning
-    
-    @patch('arc_verifier.llm_judge.LLMJudge._call_anthropic')
-    def test_evaluate_agent_success(self, mock_anthropic):
-        """Test successful agent evaluation."""
-        # Mock the Anthropic response
-        mock_anthropic.return_value = self.judge._generate_mock_anthropic_response("")
-        
-        result = self.judge.evaluate_agent(
-            self.sample_image_data,
-            market_context=self.sample_market_context
-        )
-        
-        assert isinstance(result, LLMJudgeResult)
-        assert result.intent_classification.primary_strategy == "arbitrage"
-        assert result.confidence_level > 0.5
-        mock_anthropic.assert_called_once()
-    
-    @patch('arc_verifier.llm_judge.LLMJudge._call_anthropic')
-    def test_evaluate_agent_failure_fallback(self, mock_anthropic):
-        """Test agent evaluation with API failure falls back gracefully."""
-        # Mock API failure
-        mock_anthropic.side_effect = Exception("API Error")
-        
-        result = self.judge.evaluate_agent(self.sample_image_data)
-        
-        # Should return fallback assessment
-        assert isinstance(result, LLMJudgeResult)
-        assert result.intent_classification.primary_strategy == "unknown"
-        assert result.confidence_level == 0.1
-        assert "LLM evaluation failed" in result.reasoning
-    
-    def test_format_agent_patterns(self):
-        """Test agent pattern formatting for prompts."""
-        patterns = {
-            "dependencies": ["pip install web3", "npm install trading-lib"],
-            "configurations": ["export API_KEY=secret"],
-            "commands": ["run agent.py", "start monitoring"]
-        }
-        
-        formatted = self.judge._format_agent_patterns(patterns)
-        
-        assert "**Dependencies:**" in formatted
-        assert "pip install web3" in formatted
-        assert "npm install trading-lib" in formatted
-        assert "**Configurations:**" in formatted
-        assert "export API_KEY=secret" in formatted
-        assert "**Commands:**" in formatted
-        assert "run agent.py" in formatted
-    
-    def test_format_agent_patterns_empty(self):
-        """Test agent pattern formatting with no patterns."""
-        patterns = {"dependencies": [], "configurations": [], "commands": []}
-        
-        formatted = self.judge._format_agent_patterns(patterns)
-        
-        assert formatted == "No specific patterns detected"
+        # Mock ensemble evaluator
+        with patch.object(self.judge.ensemble_evaluator, 'run_evaluation') as mock_evaluation:
+            mock_result = LLMJudgeResult(
+                intent_classification=AgentIntentClassification(
+                    primary_strategy="arbitrage",
+                    risk_profile="moderate",
+                    complexity_score=0.7,
+                    confidence=0.85
+                ),
+                code_quality=CodeQualityAnalysis(
+                    architecture_score=0.8,
+                    error_handling_score=0.7,
+                    security_practices_score=0.9,
+                    maintainability_score=0.75,
+                    test_coverage_score=0.6,
+                    overall_score=0.76,
+                    key_findings=["Well-structured codebase", "Good error handling"]
+                ),
+                risk_assessment=RiskAssessment(
+                    volatility_sensitivity=0.6,
+                    liquidity_requirements="medium",
+                    systemic_risk_score=0.3,
+                    market_impact_score=0.4,
+                    operational_risk_score=0.25,
+                    regulatory_risk_score=0.2
+                ),
+                behavioral_flags=["Standard arbitrage patterns"],
+                score_adjustments={"innovation": 5.0, "risk_management": 8.0},
+                confidence_level=0.8,
+                reasoning="Well-designed arbitrage agent with solid risk management",
+                timestamp=datetime.now()
+            )
+            mock_evaluation.return_value = mock_result
+            
+            result = self.judge.evaluate_agent(
+                self.sample_image_data,
+                market_context=self.sample_market_context
+            )
+            
+            assert isinstance(result, LLMJudgeResult)
+            assert result.intent_classification.primary_strategy == "arbitrage"
+            assert result.confidence_level == 0.8
+            assert result.code_quality.overall_score == 0.76
+            
+            mock_evaluation.assert_called_once()
 
 
 class TestLLMJudgeModels:
     """Test LLM Judge data models."""
     
     def test_agent_intent_classification_validation(self):
-        """Test AgentIntentClassification model validation."""
-        # Valid classification
+        """Test AgentIntentClassification model."""
         classification = AgentIntentClassification(
             primary_strategy="arbitrage",
             risk_profile="moderate",
@@ -373,38 +299,85 @@ class TestLLMJudgeModels:
         assert classification.complexity_score == 0.7
         assert classification.confidence == 0.85
     
-    def test_code_quality_analysis_validation(self):
-        """Test CodeQualityAnalysis model validation."""
-        analysis = CodeQualityAnalysis(
-            architecture_score=0.8,
-            error_handling_score=0.7,
-            security_practices_score=0.9,
-            maintainability_score=0.75,
-            test_coverage_score=0.6,
-            overall_score=0.76,
-            key_findings=["Finding 1", "Finding 2"]
+    def test_key_security_result_validation(self):
+        """Test KeySecurityResult model."""
+        result = KeySecurityResult(
+            has_plaintext_keys=False,
+            key_generation_secure=True,
+            key_storage_encrypted=True,
+            key_rotation_implemented=True,
+            key_exposure_risk="low",
+            security_concerns=[],
+            code_references=[]
         )
         
-        assert analysis.overall_score == 0.76
-        assert len(analysis.key_findings) == 2
+        assert result.has_plaintext_keys is False
+        assert result.key_exposure_risk == "low"
+        assert len(result.security_concerns) == 0
     
-    def test_risk_assessment_validation(self):
-        """Test RiskAssessment model validation."""
-        assessment = RiskAssessment(
-            volatility_sensitivity=0.6,
-            liquidity_requirements="medium",
-            systemic_risk_score=0.3,
-            market_impact_score=0.4,
-            operational_risk_score=0.25,
-            regulatory_risk_score=0.2
+    def test_trust_focused_result_validation(self):
+        """Test TrustFocusedResult model."""
+        key_security = KeySecurityResult(
+            has_plaintext_keys=False,
+            key_generation_secure=True,
+            key_storage_encrypted=True,
+            key_rotation_implemented=True,
+            key_exposure_risk="low",
+            security_concerns=[],
+            code_references=[]
         )
         
-        assert assessment.volatility_sensitivity == 0.6
-        assert assessment.liquidity_requirements == "medium"
-        assert assessment.systemic_risk_score == 0.3
+        transaction_controls = TransactionControlResult(
+            has_spending_limits=True,
+            has_approval_mechanisms=True,
+            emergency_stop_present=True,
+            cross_chain_controls=True,
+            transaction_monitoring=True,
+            control_strength="strong",
+            control_gaps=[]
+        )
+        
+        deception_analysis = DeceptionDetectionResult(
+            backdoor_detected=False,
+            time_bomb_detected=False,
+            obfuscated_code_found=False,
+            data_exfiltration_risk=False,
+            environment_specific_behavior=False,
+            deception_indicators=[],
+            risk_level="low"
+        )
+        
+        capital_risk = CapitalRiskResult(
+            max_loss_bounded=True,
+            position_size_controls=True,
+            stop_loss_implemented=True,
+            leverage_controls=True,
+            flash_loan_usage=False,
+            risk_controls_adequate=True,
+            estimated_max_loss="bounded"
+        )
+        
+        result = TrustFocusedResult(
+            can_trust_with_capital=True,
+            trust_score=0.85,
+            key_security=key_security,
+            transaction_controls=transaction_controls,
+            deception_analysis=deception_analysis,
+            capital_risk=capital_risk,
+            critical_vulnerabilities=[],
+            security_recommendations=["Continue monitoring"],
+            confidence_level=0.9,
+            reasoning="Strong security controls"
+        )
+        
+        assert result.trust_score == 0.85
+        assert result.can_trust_with_capital == True
+        assert result.confidence_level == 0.9
+        assert isinstance(result.key_security, KeySecurityResult)
+        assert result.reasoning == "Strong security controls"
     
     def test_llm_judge_result_serialization(self):
-        """Test LLMJudgeResult serialization."""
+        """Test LLMJudgeResult JSON serialization."""
         result = LLMJudgeResult(
             intent_classification=AgentIntentClassification(
                 primary_strategy="arbitrage",

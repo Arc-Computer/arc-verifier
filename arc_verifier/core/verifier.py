@@ -111,8 +111,8 @@ class CoreArcVerifier:
         self.audit_logger = AuditLogger()
         
         # Initialize components (lightweight instantiation)
-        self.scanner = DockerScanner()
-        self.validator = TEEValidator()
+        self.scanner = DockerScanner(console=self.console)
+        self.validator = TEEValidator(console=self.console)
         self.real_backtester = RealBacktester()
         self.strategy_verifier = StrategyVerifier()
         

@@ -44,8 +44,10 @@ def verify(images, enable_llm, enable_backtesting, backtest_period, max_concurre
         arc-verifier verify agent1:latest agent2:latest --no-backtesting
         arc-verifier verify agent:latest --backtest-period 2024-11-01:2024-11-07
     """
-    console.print(f"[bold blue]🚀 Core Verification - Phase 1 Pipeline[/bold blue]")
-    console.print(f"Verifying {len(images)} agent(s) with resource-efficient processing\n")
+    # Only show terminal output if not JSON mode
+    if output == "terminal":
+        console.print(f"[bold blue]🚀 Core Verification - Phase 1 Pipeline[/bold blue]")
+        console.print(f"Verifying {len(images)} agent(s) with resource-efficient processing\n")
     
     # Initialize core verifier with resource limits
     resource_limits = ResourceLimits(
@@ -55,9 +57,11 @@ def verify(images, enable_llm, enable_backtesting, backtest_period, max_concurre
         max_concurrent_tee=min(max_concurrent, 10)
     )
     
+    # Use a quiet console for JSON output mode
+    quiet_console = Console(quiet=(output == "json"))
     core_verifier = CoreArcVerifier(
         resource_limits=resource_limits,
-        console=console
+        console=quiet_console
     )
     
     start_time = time.time()
@@ -101,13 +105,12 @@ def verify(images, enable_llm, enable_backtesting, backtest_period, max_concurre
                     "failures": batch_result.failures
                 }
             }
-            console.print_json(data=json_result)
+            click.echo(json.dumps(json_result, indent=2))
         else:
             # Display batch results with rich formatting
             core_verifier.display_batch_results(batch_result)
-            
-        console.print(f"\n[bold]Core Verification Complete[/bold]")
-        console.print(f"Total processing time: {processing_time:.1f}s")
+            console.print(f"\n[bold]Core Verification Complete[/bold]")
+            console.print(f"Total processing time: {processing_time:.1f}s")
         
     except Exception as e:
         console.print(f"[red]Core verification failed: {e}[/red]")
@@ -171,9 +174,11 @@ def batch(
         console.print("[red]Error: No images provided[/red]")
         raise click.ClickException("At least one image must be specified")
     
-    console.print(f"[bold blue]Starting batch verification of {len(images)} images[/bold blue]")
-    console.print(f"Security tier: {tier}")
-    console.print(f"Max concurrent: {max_concurrent}")
+    # Only show terminal output if not JSON mode
+    if output == "terminal":
+        console.print(f"[bold blue]Starting batch verification of {len(images)} images[/bold blue]")
+        console.print(f"Security tier: {tier}")
+        console.print(f"Max concurrent: {max_concurrent}")
     
     # Initialize parallel verifier
     verifier = ParallelVerifier(max_concurrent=max_concurrent)
@@ -202,7 +207,7 @@ def batch(
                     "results": result.results
                 }
             }
-            console.print_json(data=json_result)
+            click.echo(json.dumps(json_result, indent=2))
             
             # Log batch results
             audit_logger = AuditLogger()

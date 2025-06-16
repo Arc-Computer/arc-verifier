@@ -1,7 +1,7 @@
 """Tests for the benchmarker module."""
 
 import pytest
-from arc_verifier.benchmarker import Benchmarker
+from arc_verifier.analysis.performance import Benchmarker
 
 
 def test_benchmarker_init():
