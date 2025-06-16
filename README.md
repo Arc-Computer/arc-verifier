@@ -4,16 +4,16 @@ Open source verification infrastructure for autonomous agents across agentic pro
 
 ## Overview
 
-Arc-Verifier provides automated evaluation of autonomous agents deployed on agentic protocols including NEAR Chain Signatures, multichain intent systems, and TEE-based infrastructures. As autonomous agents increasingly manage billions in capital and execute decisions without human intervention, verification becomes critical for protocol safety and user trust.
+Arc-Verifier provides automated evaluation of autonomous agents deployed on agentic protocols including multichain intent systems, and TEE-based infrastructures. As autonomous agents increasingly manage billions in capital and execute decisions without human intervention, verification becomes critical for protocol safety and user trust.
 
 ### Key Features
 
-- 🔒 **Security Validation**: Container scanning, TEE attestation, key management verification
-- 📊 **Strategy Verification**: Validates agents do what they claim with real market data
-- 🏆 **Fort Score™**: Industry-first trustworthiness metric (0-180)
-- ⚡ **Production Scale**: Verify 100+ agents in parallel
-- 🤖 **AI Analysis**: LLM-powered behavioral assessment and risk detection
-- 🌐 **Protocol Agnostic**: Works with any containerized agent
+- **Security Validation**: Container scanning, TEE attestation, key management verification
+- **Strategy Verification**: Validates agents do what they claim with real market data
+- **Verification Score™**: Trustworthiness metric (0-180)
+- **Production Scale**: Verify 100+ agents in parallel
+- **LLM-as-a-Judge**: Agent behavioral assessment and risk detection
+- **Protocol Agnostic**: Works with any containerized agent
 
 ## Architecture Diagram
 
