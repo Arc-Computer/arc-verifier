@@ -379,38 +379,6 @@ Arc-Verifier automatically collects:
 | TEE Attestations | Hardware measurements, signatures | `tee/` |
 | Code Patterns | Logic analysis, behavioral signatures | `llm_judge/` |
 
-## Current Capabilities
-
-### 🔐 Security Validation
-- Container vulnerability scanning with Trivy
-- TEE attestation validation (simulation mode)
-- Dependency vulnerability assessment
-- Security scoring based on CVE severity
-
-### 📊 Strategy Analysis
-- Historical backtesting with real market data
-- Strategy type detection (arbitrage, market making, momentum)
-- Risk metrics calculation
-- Performance effectiveness scoring
-
-### ⚡ Parallel Verification
-- Concurrent agent verification using asyncio
-- Resource-aware semaphore management
-- Batch processing with progress tracking
-- Configurable concurrency limits
-
-### 🌐 Web Dashboard
-- Interactive verification history viewer
-- Fort Score visualization and trends
-- Component metrics breakdown
-- Real-time statistics dashboard
-
-### 🤖 LLM Analysis
-- Multi-provider support (Anthropic, OpenAI)
-- Security-focused code analysis
-- Behavioral pattern detection
-- Trust scoring and recommendations
-
 ## Installation
 
 ```bash
