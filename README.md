@@ -32,7 +32,7 @@ graph TB
     end
     
     subgraph "Scoring Engine"
-        G[Fort Score Calculator<br/>0-180 Points]
+        G[Verification Calculator<br/>0-180 Points]
     end
     
     subgraph "Outputs"
