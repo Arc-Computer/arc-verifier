@@ -126,12 +126,11 @@ def backtest(image: str, start_date: str, end_date: str, symbols: str, output: s
     backtester = RealBacktester()
     
     try:
-        # Run backtest
+        # Run backtest (symbols parameter not supported yet)
         result = backtester.run(
             image, 
             start_date=start_date, 
-            end_date=end_date,
-            symbols=symbol_list
+            end_date=end_date
         )
         
         if output == "json":
@@ -145,12 +144,22 @@ def backtest(image: str, start_date: str, end_date: str, symbols: str, output: s
             console.print(f"\n[bold]Backtest Results:[/bold]")
             if hasattr(result, 'metrics'):
                 metrics = result.metrics
-                console.print(f"Total Return: {metrics.get('total_return', 0):.2%}")
-                console.print(f"Annualized Return: {metrics.get('annualized_return', 0):.2%}")
-                console.print(f"Sharpe Ratio: {metrics.get('sharpe_ratio', 0):.2f}")
-                console.print(f"Max Drawdown: {metrics.get('max_drawdown', 0):.2%}")
-                console.print(f"Win Rate: {metrics.get('win_rate', 0):.2%}")
-                console.print(f"Total Trades: {metrics.get('total_trades', 0)}")
+                # Handle Pydantic model
+                if hasattr(metrics, 'total_return'):
+                    console.print(f"Total Return: {metrics.total_return:.2%}")
+                    console.print(f"Annualized Return: {metrics.annualized_return:.2%}")
+                    console.print(f"Sharpe Ratio: {metrics.sharpe_ratio:.2f}")
+                    console.print(f"Max Drawdown: {metrics.max_drawdown:.2%}")
+                    console.print(f"Win Rate: {metrics.win_rate:.2%}")
+                    console.print(f"Total Trades: {metrics.total_trades}")
+                else:
+                    # Fallback for dict
+                    console.print(f"Total Return: {metrics.get('total_return', 0):.2%}")
+                    console.print(f"Annualized Return: {metrics.get('annualized_return', 0):.2%}")
+                    console.print(f"Sharpe Ratio: {metrics.get('sharpe_ratio', 0):.2f}")
+                    console.print(f"Max Drawdown: {metrics.get('max_drawdown', 0):.2%}")
+                    console.print(f"Win Rate: {metrics.get('win_rate', 0):.2%}")
+                    console.print(f"Total Trades: {metrics.get('total_trades', 0)}")
             else:
                 console.print("Backtest completed - see raw results above")
                 
@@ -182,8 +191,40 @@ def simulate(image: str, scenario: str, output: str):
     simulator = AgentSimulator()
 
     try:
+        # Get scenario from library or create custom
+        from ...utils.simulator import ScenarioLibrary, SimulationScenario, ScenarioStep
+        
+        # Check if scenario is a predefined one
+        predefined_scenarios = {
+            "market_stress": ScenarioLibrary.get_price_oracle_scenarios()[0],
+            "high_volatility": ScenarioLibrary.get_price_oracle_scenarios()[0],
+            "flash_crash": ScenarioLibrary.get_arbitrage_scenarios()[0],
+            "profitable_arbitrage": ScenarioLibrary.get_arbitrage_scenarios()[0],
+            "unprofitable_arbitrage": ScenarioLibrary.get_arbitrage_scenarios()[1],
+            "api_failure": ScenarioLibrary.get_price_oracle_scenarios()[1],
+        }
+        
+        if scenario in predefined_scenarios:
+            simulation_scenario = predefined_scenarios[scenario]
+        else:
+            # Create a basic custom scenario
+            simulation_scenario = SimulationScenario(
+                name=scenario,
+                description=f"Custom scenario: {scenario}",
+                agent_type="price_oracle",
+                steps=[
+                    ScenarioStep(
+                        time_offset_seconds=0,
+                        market_data={"eth_price": 3000.0},
+                    )
+                ],
+                success_criteria={
+                    "min_scores": {"correctness": 0.5, "safety": 0.5},
+                }
+            )
+        
         # Run simulation
-        result = simulator.simulate(image, scenario)
+        result = simulator.run_simulation(image, simulation_scenario)
 
         if output == "json":
             # Convert to dict for JSON output

@@ -26,6 +26,15 @@ import asyncio
 from typing import List, Optional, Dict, Any, Union
 from pathlib import Path
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+env_path = Path(__file__).parent.parent / '.env'
+if env_path.exists():
+    load_dotenv(env_path, override=True)
+else:
+    load_dotenv(override=True)
 
 from .core import CoreArcVerifier, ResourceLimits, CoreVerificationResult, BatchVerificationResult
 from .security import DockerScanner, TEEValidator
@@ -140,12 +149,12 @@ def _convert_batch_to_standard(
     avg_fort_score = total_fort_score / len(converted_results) if converted_results else 0
     
     return StandardBatchResult(
-        batch_id=create_batch_id(),
+        batch_id=create_batch_id(images),
         timestamp=datetime.now(),
-        total_processing_time_seconds=batch_result.total_processing_time,
+        total_processing_time_seconds=batch_result.processing_time,
         total_agents=batch_result.total_agents,
-        successful_verifications=batch_result.successful_agents,
-        failed_verifications=batch_result.failed_agents,
+        successful_verifications=batch_result.successful_verifications,
+        failed_verifications=batch_result.failed_verifications,
         average_fort_score=avg_fort_score,
         results=converted_results,
         failures=batch_result.failures

@@ -1,0 +1,5 @@
+sample-trading-agent:latest
+arbitrage-agent:latest
+market-maker:prod
+nginx:latest
+hello-world:latest

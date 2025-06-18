@@ -179,10 +179,14 @@ def create_exportable_result(verification_data: dict) -> ExportableResult:
     fort_score = result.get("fort_score", result.get("agent_fort_score", 0))
     status = result.get("overall_status", result.get("status", "UNKNOWN"))
     
-    # Component scores
-    security_score = result.get("docker_scan", {}).get("security_score", 0)
-    perf_score = result.get("performance_benchmark", {}).get("performance_score", 0)
-    strategy_score = result.get("strategy_verification", {}).get("strategy_effectiveness", 0)
+    # Component scores (handle None values)
+    docker_scan = result.get("docker_scan") or {}
+    perf_benchmark = result.get("performance_benchmark") or {}
+    strategy_verification = result.get("strategy_verification") or {}
+    
+    security_score = docker_scan.get("security_score", 0)
+    perf_score = perf_benchmark.get("performance_score", 0)
+    strategy_score = strategy_verification.get("strategy_effectiveness", 0)
     
     # Count total vulnerabilities
     vuln_count = 0

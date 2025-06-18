@@ -420,11 +420,13 @@ class CoreArcVerifier:
         """Run LLM analysis with resource control."""
         async with self._llm_semaphore:
             # LLM calls are I/O bound, don't use thread pool
-            return await asyncio.to_thread(
+            result = await asyncio.to_thread(
                 self.llm_judge.evaluate_agent,
                 {"image_tag": agent_image},
                 {"timestamp": datetime.now()}
             )
+            # Convert Pydantic model to dict
+            return result.model_dump() if hasattr(result, 'model_dump') else result
     
     async def _mock_backtest_result(self) -> Dict[str, Any]:
         """Return mock backtest result when backtesting is disabled."""
@@ -516,15 +518,31 @@ class CoreArcVerifier:
         if not llm_result or llm_result.get("disabled"):
             return 50.0  # Neutral score when disabled
         
-        # Extract trust score from LLM result
-        trust_score = llm_result.get("overall_trust_score", 50.0)
+        # Extract confidence level and risk assessment
+        confidence_level = llm_result.get("confidence_level", 0.5)
         
-        # Security analysis component
-        security_analysis = llm_result.get("security_analysis", {})
-        security_score = security_analysis.get("score", 50.0)
+        # Calculate trust score from risk assessment and code quality
+        risk_assessment = llm_result.get("risk_assessment", {})
+        code_quality = llm_result.get("code_quality", {})
         
-        # Weighted average
-        return (trust_score * 0.7) + (security_score * 0.3)
+        # Higher risk scores mean lower trust
+        volatility_sensitivity = risk_assessment.get("volatility_sensitivity", 0.5)
+        systemic_risk = risk_assessment.get("systemic_risk_score", 0.5)
+        operational_risk = risk_assessment.get("operational_risk_score", 0.5)
+        
+        # Higher quality scores mean higher trust
+        overall_quality = code_quality.get("overall_score", 0.5)
+        security_practices = code_quality.get("security_practices_score", 0.5)
+        
+        # Calculate trust score (inverted risk scores)
+        risk_score = 1.0 - ((volatility_sensitivity + systemic_risk + operational_risk) / 3)
+        quality_score = (overall_quality + security_practices) / 2
+        
+        # Weighted average with confidence adjustment
+        base_trust = (risk_score * 0.6) + (quality_score * 0.4)
+        trust_score = base_trust * confidence_level * 100
+        
+        return min(100.0, max(0.0, trust_score))
     
     def _calculate_tee_score(self, tee_result: Dict) -> float:
         """Calculate TEE score from attestation validation."""

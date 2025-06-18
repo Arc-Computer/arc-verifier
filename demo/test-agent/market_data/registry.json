@@ -1,0 +1,150 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-06-16T13:02:18.554918",
+  "data_sources": {
+    "BTCUSDT": {
+      "1h": {
+        "2024-10-01": {
+          "path": "daily/BTCUSDT/1h/BTCUSDT-1h-2024-10-01.zip",
+          "size": 1569,
+          "hash": "b086b1f6b195da88712eda25b2a10edeb32d60ca4a8b9b4256ae4bfc8a21268a",
+          "registered": "2025-06-16T13:01:29.520509"
+        },
+        "2024-10-02": {
+          "path": "daily/BTCUSDT/1h/BTCUSDT-1h-2024-10-02.zip",
+          "size": 1567,
+          "hash": "41054ee1764ff9cc415ccd86cd71df81a36bda61ca4510d9d35ad1c1663b1e05",
+          "registered": "2025-06-16T13:01:29.846955"
+        },
+        "2024-10-03": {
+          "path": "daily/BTCUSDT/1h/BTCUSDT-1h-2024-10-03.zip",
+          "size": 1561,
+          "hash": "060e0af384f8d722e5429bcb78d2d260fc9a14253574f72f4c2fc97f54f99263",
+          "registered": "2025-06-16T13:01:30.445911"
+        },
+        "2024-10-04": {
+          "path": "daily/BTCUSDT/1h/BTCUSDT-1h-2024-10-04.zip",
+          "size": 1555,
+          "hash": "07ca8b07a9b400235f034479fb7f7cc11f9d26a7f745210f6e0f3bc274f580cd",
+          "registered": "2025-06-16T13:01:30.836411"
+        },
+        "2024-10-05": {
+          "path": "daily/BTCUSDT/1h/BTCUSDT-1h-2024-10-05.zip",
+          "size": 1512,
+          "hash": "3f74ac268d3f311b49f159ac29dbb52b68cd21396cbf169bece8986440a1e8b4",
+          "registered": "2025-06-16T13:01:31.252257"
+        },
+        "2024-10-06": {
+          "path": "daily/BTCUSDT/1h/BTCUSDT-1h-2024-10-06.zip",
+          "size": 1531,
+          "hash": "6c6527bb7e9d2524c681c85e6d9811f61547eef5f06f21ff25573e3e35d4e14e",
+          "registered": "2025-06-16T13:01:32.029129"
+        },
+        "2024-10-07": {
+          "path": "daily/BTCUSDT/1h/BTCUSDT-1h-2024-10-07.zip",
+          "size": 1574,
+          "hash": "ede16614e8104e76d7c6bdf16e27b99f41307e6c2291f9cabd46cd74c66c1bca",
+          "registered": "2025-06-16T13:01:32.561923"
+        }
+      }
+    },
+    "ETHUSDT": {
+      "1h": {
+        "2024-10-01": {
+          "path": "daily/ETHUSDT/1h/ETHUSDT-1h-2024-10-01.zip",
+          "size": 1521,
+          "hash": "c2bff1da85eff520333b64375d838f9b289860cd8990a76e670c871aeea0aa06",
+          "registered": "2025-06-16T13:01:33.191301"
+        },
+        "2024-10-02": {
+          "path": "daily/ETHUSDT/1h/ETHUSDT-1h-2024-10-02.zip",
+          "size": 1514,
+          "hash": "a709598154069214e40590d603376917bf3982c11a18946033904a2139482f16",
+          "registered": "2025-06-16T13:01:33.793875"
+        },
+        "2024-10-03": {
+          "path": "daily/ETHUSDT/1h/ETHUSDT-1h-2024-10-03.zip",
+          "size": 1501,
+          "hash": "30896d9560bf16b48ce38b9aec10c7bb90cd305d80c8639c955bd713c9fc42bc",
+          "registered": "2025-06-16T13:01:34.133933"
+        },
+        "2024-10-04": {
+          "path": "daily/ETHUSDT/1h/ETHUSDT-1h-2024-10-04.zip",
+          "size": 1493,
+          "hash": "b22189ef5a92d10fcf0a9947a886ee5d198fceaa52c35c85442062f1febef01f",
+          "registered": "2025-06-16T13:01:34.730218"
+        },
+        "2024-10-05": {
+          "path": "daily/ETHUSDT/1h/ETHUSDT-1h-2024-10-05.zip",
+          "size": 1447,
+          "hash": "ffab47afa599001ca84cb18eadd270998dfd8b91096a8de483b29f0e8e21ff41",
+          "registered": "2025-06-16T13:01:35.352905"
+        },
+        "2024-10-06": {
+          "path": "daily/ETHUSDT/1h/ETHUSDT-1h-2024-10-06.zip",
+          "size": 1452,
+          "hash": "0ea52fb5fbd7cc8ae366570d8f545136b3c7a0f2797502e05a96c388c97c04a6",
+          "registered": "2025-06-16T13:01:35.966643"
+        },
+        "2024-10-07": {
+          "path": "daily/ETHUSDT/1h/ETHUSDT-1h-2024-10-07.zip",
+          "size": 1509,
+          "hash": "e879b559b4ffd084592843c213b393ed8e9c79830eda1996fec56b0d55cdc3f3",
+          "registered": "2025-06-16T13:01:36.295041"
+        }
+      }
+    }
+  },
+  "cached_files": {
+    "BTCUSDT_1h_2024-10-01_to_2024-10-07": {
+      "path": "cache/BTCUSDT_1h_2024-10-01_to_2024-10-07.parquet",
+      "rows": 145,
+      "size": 20044,
+      "created": "2025-06-16T13:02:18.534301"
+    },
+    "ETHUSDT_1h_2024-10-01_to_2024-10-07": {
+      "path": "cache/ETHUSDT_1h_2024-10-01_to_2024-10-07.parquet",
+      "rows": 145,
+      "size": 19879,
+      "created": "2025-06-16T13:02:18.554914"
+    }
+  },
+  "regime_windows": {
+    "bull_2024": {
+      "start": "2024-10-01",
+      "end": "2024-10-31",
+      "description": "October 2024 bull run",
+      "btc_range": [
+        60000,
+        73000
+      ]
+    },
+    "bear_2024": {
+      "start": "2024-05-01",
+      "end": "2024-05-31",
+      "description": "May 2024 correction",
+      "btc_range": [
+        64000,
+        57000
+      ]
+    },
+    "volatile_2024": {
+      "start": "2024-03-01",
+      "end": "2024-03-31",
+      "description": "March 2024 high volatility",
+      "btc_range": [
+        61000,
+        71000
+      ]
+    },
+    "sideways_2024": {
+      "start": "2024-07-01",
+      "end": "2024-07-31",
+      "description": "July 2024 consolidation",
+      "btc_range": [
+        63000,
+        68000
+      ]
+    }
+  }
+}
