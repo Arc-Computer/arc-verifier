@@ -9,10 +9,10 @@ Arc-Verifier provides automated evaluation of autonomous agents deployed on agen
 ### Key Features
 
 - **Security Validation**: Container scanning, TEE attestation, key management verification
-- **Strategy Verification**: Validates agents do what they claim with real market data
-- **Verification Score™**: Trustworthiness metric (0-180)
+- **Container-Based Testing**: All verification uses actual agent containers for realistic results
+- **Verification Score™**: Industry-standard trustworthiness metric (0-180)
 - **Production Scale**: Verify 100+ agents in parallel
-- **LLM-as-a-Judge**: Agent behavioral assessment and risk detection
+- **LLM-as-a-Judge**: Real API calls for behavioral assessment and risk detection
 - **Protocol Agnostic**: Works with any containerized agent
 
 ## Architecture Diagram
@@ -20,19 +20,25 @@ Arc-Verifier provides automated evaluation of autonomous agents deployed on agen
 ```mermaid
 graph TB
     subgraph "Input"
-        A[Docker Image]
+        A[Docker Image<br/>Required]
     end
     
     subgraph "Verification Pipeline"
         B[Security Scanner<br/>CVE Detection]
         C[TEE Validator<br/>Hardware Attestation]
         D[Performance Tester<br/>Load & Stress]
-        E[Strategy Verifier<br/>Backtesting]
+        E[Strategy Verifier<br/>Container Backtesting]
         F[LLM Judge<br/>Behavioral Analysis]
     end
     
+    subgraph "Container Execution"
+        E1[Run Agent Container<br/>with Historical Data]
+        E2[Collect Trade Logs]
+        E3[Calculate Metrics]
+    end
+    
     subgraph "Scoring Engine"
-        G[Verification Calculator<br/>0-180 Points]
+        G[Verification Score™<br/>0-180 Points]
     end
     
     subgraph "Outputs"
@@ -45,13 +51,17 @@ graph TB
     B --> C
     C --> D
     D --> E
-    E --> F
+    E --> E1
+    E1 --> E2
+    E2 --> E3
+    E3 --> F
     F --> G
     G --> H
     G --> I
     G --> J
     
     style A fill:#e1f5fe
+    style E fill:#ffecb3
     style G fill:#fff9c4
     style H fill:#c8e6c9
     style I fill:#c8e6c9
@@ -73,7 +83,8 @@ arc-verifier/
 │   ├── strategy.py      # Strategy verification
 │   └── llm_judge/       # AI behavioral analysis
 ├── data/                # Market data management
-│   ├── backtester.py    # Historical testing
+│   ├── container_backtester.py  # Container-based backtesting
+│   ├── backtester.py    # Backtesting orchestrator
 │   └── fetcher.py       # Data collection
 ├── orchestration/       # Scaling infrastructure
 │   └── parallel.py      # Concurrent verification
@@ -94,7 +105,7 @@ arc-verifier/
 | `validator.py` | TEE attestation validation (Intel SGX, AMD SEV) |
 | `benchmarker.py` | Performance testing and resource profiling |
 | `strategy_verifier.py` | Trading strategy analysis with real market data |
-| `real_backtester.py` | Historical performance simulation |
+| `container_backtester.py` | Container-based backtesting with actual agent execution |
 | `simulator.py` | Agent behavior simulation under various conditions |
 | `llm_judge/` | AI-based code analysis and behavioral assessment |
 | `tee/` | Trusted Execution Environment validation suite |
@@ -157,10 +168,10 @@ Docker Image → Security Scan → TEE Validation → Performance Test → Strat
    - Resource usage profiling
    - Latency analysis under stress
 
-4. **Strategy Verification** (`strategy_verifier.py`, `real_backtester.py`)
-   - Historical performance backtesting
-   - Market regime analysis
-   - Risk-adjusted return calculation
+4. **Strategy Verification** (`strategy_verifier.py`, `container_backtester.py`)
+   - Container-based backtesting using actual agent execution
+   - Real trade collection from agent logs
+   - Risk-adjusted return calculation from actual performance
 
 5. **Behavioral Assessment** (`llm_judge/`, `simulator.py`)
    - AI-powered code review
@@ -185,7 +196,7 @@ arc-verifier init
 ### Basic Usage
 
 ```bash
-# Verify single agent
+# Verify single agent (Docker image required)
 arc-verifier verify myagent:latest
 
 # Verify with high security requirements
@@ -198,6 +209,8 @@ arc-verifier batch -f agents.txt --max-concurrent 20
 arc-verifier export web
 ```
 
+**Note**: All agents must be containerized as Docker images. Arc-Verifier runs actual containers to ensure realistic verification results.
+
 ### Programmatic API
 
 ```python
@@ -205,7 +218,7 @@ from arc_verifier import api
 
 # Simple verification
 result = await api.verify_agent("myagent:latest")
-print(f"Fort Score: {result.fort_score}/180")
+print(f"Verification Score: {result.verification_score}/180")
 print(f"Status: {result.status}")
 
 # Batch verification with custom settings
@@ -260,14 +273,14 @@ python -m arc_verifier.tee.cli registry add myagent:latest \
 ┌──────────────────────────────┐
 │     Verification Results     │
 ├──────────────────────────────┤
-│ Security: ✓ 0 critical      │
-│ TEE: ✓ Intel SGX verified   │
-│ Performance: ✓ 2000 TPS     │
-│ Strategy: ✓ 75% effective   │
-│ AI Analysis: ✓ No risks     │
+│ Security: ✓ 0 critical       │
+│ TEE: ✓ Intel SGX verified    │
+│ Performance: ✓ 2000 TPS      │
+│ Strategy: ✓ 75% effective    │
+│ AI Analysis: ✓ No risks      │
 └──────────────────────────────┘
 
-Fort Score: 145/180 (Deploy with confidence)
+Verification Score: 145/180 (Deploy with confidence)
 ```
 
 ### JSON Output
@@ -276,7 +289,7 @@ Fort Score: 145/180 (Deploy with confidence)
   "verification_id": "ver_a1b2c3d4",
   "image": "myagent:latest",
   "timestamp": "2024-01-15T10:30:00Z",
-  "fort_score": 145,
+  "verification_score": 145,
   "components": {
     "docker_scan": {
       "vulnerabilities": {"critical": 0, "high": 0},
@@ -317,7 +330,7 @@ Fort Score: 145/180 (Deploy with confidence)
       --tier high --output json > results.json
     
     # Enforce minimum score
-    SCORE=$(jq -r '.fort_score' results.json)
+    SCORE=$(jq -r '.verification_score' results.json)
     if [ $SCORE -lt 120 ]; then exit 1; fi
 ```
 
@@ -329,7 +342,7 @@ Arc-Verifier integrates with various agentic protocol infrastructures:
 - **TEE-based Protocols**: Comprehensive attestation for Phala, Oasis, and other TEE networks
 - **General Agent Frameworks**: Protocol-agnostic verification for any containerized agent
 
-## Fort Score™
+## Verification Score™
 
 The industry-standard trustworthiness metric for autonomous agents (0-180 points):
 
